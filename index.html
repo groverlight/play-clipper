@@ -2323,7 +2323,7 @@ class Component extends DCLogic {
         .map(o => ({ ...o, bg: st.qtr === o.key ? '#eceae6' : 'transparent', fg: st.qtr === o.key ? '#161615' : '#cfcdc8', pick: () => this.setState({ qtr: o.key }) })),
       countTxt: `${shown} plays` + (hasVideo ? ` · ${withClip} with clips` : ''),
       groups, noPlays: groups.length === 0,
-      emptyMsg: st.gameLoading ? 'Loading plays…' : G ? 'No plays match these filters.' : hasVideo ? 'Plays appear here as they are found.' : 'Drop a game video to start.',
+      emptyMsg: st.gameLoading ? 'Loading plays…' : st.gameError ? st.gameError : G ?'No plays match these filters.' : hasVideo ? 'Plays appear here as they are found.' : 'Drop a game video to start.',
       hasOpen: !!oc,
       openTitle: oit ? (op ? `Q${op.q > 4 ? 'OT' : op.q} · Drive ${op.drive + 1} · Play ${oit.n}` : `Play ${oit.n}`) : '',
       openMeta: oc ? [op && op.clock, ot && ot.abbr, op && (op.dd || op.type), 'at ' + this.fmt(oc.start), (oc.end - oc.start).toFixed(1) + 's', oc.est ? 'approx.' : ''].filter(Boolean).join(' · ') : '',
