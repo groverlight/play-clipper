@@ -135,7 +135,7 @@ input::placeholder{color:#8b8984}
 <sc-if value="{{ hasError }}" hint-placeholder-val="{{ false }}"><div style="flex:none;padding:8px 24px;font-size:13px;color:#f08a6a;border-bottom:1px solid #2a2a28">{{ error }}</div></sc-if>
 
 <!-- ============ CLIPS + PANEL ============ -->
-<div style="flex:0 0 auto;display:flex;gap:24px;padding:16px 0 0">
+<div style="flex:0 0 auto;display:flex;padding:16px 0 0;position:relative">
   <div style="flex:1 1 0;min-width:0;position:relative;height:{{ rowH }}">
     <sc-if value="{{ noPlays }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:15px;color:#8b8984">{{ emptyMsg }}</div></sc-if>
     <div ref="{{ rowRef }}" onScroll="{{ onRowScroll }}" style="height:100%;display:flex;align-items:flex-start;gap:32px;overflow-x:auto;overflow-y:hidden;padding:0 calc(50% - {{ cardHalf }});scrollbar-width:none;scroll-snap-type:x mandatory">
@@ -179,7 +179,7 @@ input::placeholder{color:#8b8984}
 
   <!-- side panel -->
   <sc-if value="{{ panelOpen }}" hint-placeholder-val="{{ false }}">
-  <div style="flex:0 0 360px;width:360px;height:{{ rowH }};margin-right:24px;background:#1c1c1a;border-radius:12px;display:flex;flex-direction:column;overflow:hidden">
+  <div style="position:absolute;right:24px;top:16px;z-index:5;width:360px;height:{{ rowH }};background:#1c1c1a;border-radius:12px;display:flex;flex-direction:column;overflow:hidden;box-shadow:-16px 0 32px rgba(10,10,9,.6)">
     <div style="flex:none;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 16px">
       <span style="font-size:15px;line-height:21px;font-weight:700">{{ panelTitle }}</span>
       <button onClick="{{ closePanel }}" aria-label="Close panel" style="width:32px;height:32px;margin-right:-8px;display:flex;align-items:center;justify-content:center;border:none;background:none;border-radius:6px;cursor:pointer;padding:0" style-hover="background:#2a2a28"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="#a3a19c" stroke-width="1.5" stroke-linecap="round"></path></svg></button>
