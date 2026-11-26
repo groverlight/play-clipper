@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play Clipper</title>
-<meta name="pc-build" content="1795712067">
+<meta name="pc-build" content="1795712090">
 <script src="./vendor/react.production.min.js"></script>
 <script src="./vendor/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
@@ -2419,6 +2419,13 @@ class Component extends DCLogic {
       try { sessionStorage.setItem('pc-view', JSON.stringify({ key: this._ccKey, unit: this.state.unit, q: this.state.q, panel: this.state.panel, scope: this.state.scope })); } catch (e) {}
       location.replace(location.pathname + '?v=' + this._newVer);
     }, 60000);
+  }
+  diag() {
+    const G = this.state.game, clips = new Map((this.state.clips || []).map(c => [c.id, c])), F = this.auditFlags || {}, B = this.bug || {};
+    const bg = (t) => { const r = B[this.bkey(t)]; return r ? (r.q || '?') + 'Q ' + Math.floor(r.s / 60) + ':' + String(r.s % 60).padStart(2, '0') : '-'; };
+    const lines = ['build ' + this.build() + ' file ' + (this.fileKey || '') + ' dur ' + Math.round(this.state.duration || 0) + ' phase ' + this.state.phase + ' bugOn ' + !!this.bugOn + ' unit ' + this.state.unit];
+    ((G && G.plays) || []).forEach((p, i) => { const c = clips.get(p.id); lines.push([i, p.id, 'Q' + p.q + ' ' + p.clock, (p.down || '') + (p.spot ? ' @' + p.spot : ''), p.st ? 'ST' : (p.off === this.TEAM ? 'OFF' : 'DEF'), String(p.text || '').slice(0, 60), c ? `st ${c.start.toFixed(1)} sn ${c.snap.toFixed(1)} en ${c.end.toFixed(1)}${c.est ? ' EST' : ''}${c.guarded ? ' BASE' : ''} bug ${bg(c.snap - 0.5)} / ${bg(c.snap + 2)}` : 'NO CLIP', (F[p.id] || []).join(',')].join(' | ')); });
+    return lines.join('\n');
   }
   // ---- placeholder "AI" notes: written from ESPN stats until a real model is connected ----
   noteFor(c, F, t, nx) {
