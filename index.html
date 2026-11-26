@@ -2158,7 +2158,7 @@ class Component extends DCLogic {
         const stt = (c.status && c.status.type) || {}, done = !!stt.completed, live = stt.state === 'in', d = new Date(ev.date);
         const a = +val(me) || 0, b = +val(op) || 0, rk = op && op.curatedRank && op.curatedRank.current;
         return { id: String(ev.id), dateTxt: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }), at: me && me.homeAway === 'away' ? '@' : 'vs',
-          opp: op ? (op.team.shortDisplayName || op.team.location || op.team.abbreviation) : 'TBD', oppAbbr: op ? op.team.abbreviation : '', logo: op && op.team.logos && op.team.logos[0] ? op.team.logos[0].href : '',
+          opp: op ? (op.team.location || op.team.shortDisplayName || op.team.abbreviation) : 'TBD', oppAbbr: op ? op.team.abbreviation : '', logo: op && op.team.logos && op.team.logos[0] ? op.team.logos[0].href : '',
           rank: rk && rk <= 25 ? String(rk) : '', done, live, win: !!(me && me.winner), score: done || live ? `${Math.max(a, b)}-${Math.min(a, b)}` : '',
           time: done || live ? '' : (ev.timeValid === false ? 'TBD' : d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })),
           wlRec: done ? `${rec(me, 'total')} (${rec(me, 'vsconf')})` : '' };
@@ -2344,7 +2344,7 @@ class Component extends DCLogic {
     const chipOf = (l) => { const L = String(l || ''); const map = { TD: ['TD', 'light'], FG: ['FG', 'light'], Punt: ['PUNT', 'grey'], INT: ['INT', 'red'], Fumble: ['FUM', 'red'], Downs: ['DOWNS', 'red'], Safety: ['SAFETY', 'red'], 'Missed FG': ['MISSED FG', 'grey'], Half: ['HALF', 'grey'], End: ['END', 'grey'] }; const m = map[L] || [L.toUpperCase().slice(0, 10), 'grey']; const tone = { light: ['#eceae6', '#161615'], red: ['#e8503a', '#eceae6'], grey: ['#5a5955', '#eceae6'] }[m[1]]; return { chip: m[0], chipBg: tone[0], chipFg: tone[1], hasChip: !!m[0] }; };
     let lastQ = 0;
     const drives = (b.tl || []).map((d, di) => {
-      const q0 = (d.ticks[0] && d.ticks[0].qn) || 0, qDiv = di > 0 && q0 > lastQ, lastT = d.ticks[d.ticks.length - 1]; const qLab = q0 > 4 ? 'OT' : 'Q' + q0; lastQ = Math.max(lastQ, (lastT && lastT.qn) || q0);
+      const q0 = (d.ticks[0] && d.ticks[0].qn) || 0, qDiv = di > 0 && q0 > lastQ; const qLab = q0 > 4 ? 'OT' : 'Q' + q0; lastQ = Math.max(lastQ, q0);
       return { qDiv, qLab, num: d.num2, numColor: d.here ? '#eceae6' : '#a3a19c', ...chipOf(d.long), hasTeam: (st.unit || 'off') === 'all' && !!d.teamAb, team: d.teamAb, spot: d.spot || '', spotColor: d.plus ? '#eceae6' : '#8b8984', time: d.time && d.time !== '–' ? (d.spot ? ' · ' : '') + d.time : '',
         plays: d.ticks.map(t => {
           const on = t.i === ci, y = t._y || 0, col = t._type === 'pass' ? PASS : RUN;
