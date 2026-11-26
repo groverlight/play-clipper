@@ -659,7 +659,7 @@ class Component extends DCLogic {
   releaseThumbs() { if (!this.thumbHold) return; this.thumbHold = false; clearTimeout(this.thumbHoldTO); this.setState({}, () => this.pumpThumbs()); }
   setupThumbs() {
     this.tc = document.createElement('canvas'); this.tc.width = 1280; this.tc.height = 720;
-    const fk = this.fileKey; if (fk && this._thumbsLoaded !== fk) { this._thumbsLoaded = fk; this.cacheGet('thumbs|' + fk).then(t => { if (!t || this.fileKey !== fk) return; for (const k in t) if (t[k].hq === 2 && !(this.thumbs[k] && this.thumbs[k].hq === 2)) this.thumbs[k] = t[k]; this.forceUpdate(); this.pumpThumbs(); }); }
+    const fk = this.fileKey; if (fk && this._thumbsLoaded !== fk) { this._thumbsLoaded = fk; this.cacheGet('thumbs|' + fk).then(t => { if (!t || this.fileKey !== fk) return; for (const k in t) if (t[k].hq === 2 && t[k].ok === 1 && !(this.thumbs[k] && this.thumbs[k].hq === 2)) this.thumbs[k] = t[k]; this.forceUpdate(); this.pumpThumbs(); }); }
     const tv = document.createElement('video');
     tv.muted = true; tv.playsInline = true; tv.preload = 'auto'; tv.src = this.state.src;
     if (this.tv && this.tv.parentNode) this.tv.remove();
@@ -1802,7 +1802,7 @@ class Component extends DCLogic {
     const g = this.tc.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(tv, 0, 0, 1280, 720);
     const px = g.getImageData(0, 0, 1280, 720).data; let sum = 0, nPx = 0; for (let k = 0; k < px.length; k += 4 * 997) { sum += px[k] + px[k + 1] + px[k + 2]; nPx++; }
     if (sum / (nPx * 3 || 1) < 10 && (id.tries || 0) < 3) { id.tries = (id.tries || 0) + 1; id.waited = false; this.thumbAt = performance.now(); tv.currentTime = Math.min((tv.duration || 1e9) - 0.1, tv.currentTime + 0.25); return; }
-    this.thumbs[id.id] = { t: id.t, s: id.s, url: this.tc.toDataURL('image/jpeg', 0.88), hq: 2, v: 3 };
+    this.thumbs[id.id] = { t: id.t, s: id.s, url: this.tc.toDataURL('image/jpeg', 0.88), hq: 2, v: 3, ok: 1 };
     clearTimeout(this.thumbSaveTO); const fk = this.fileKey; this.thumbSaveTO = setTimeout(() => { if (fk !== this.fileKey) return; const o = {}; for (const k in this.thumbs) if (this.thumbs[k].hq === 2) o[k] = this.thumbs[k]; this.cachePut('thumbs|' + fk, o); }, 1500);
     this.thumbBusy = null; clearTimeout(this.thumbTO);
     this.forceUpdate();
