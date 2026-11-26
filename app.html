@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play Clipper</title>
-<meta name="pc-build" content="1795717267">
+<meta name="pc-build" content="1795718073">
 <script src="./vendor/react.production.min.js"></script>
 <script src="./vendor/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
@@ -451,6 +451,7 @@ class Component extends DCLogic {
       const plays = drives.flatMap((d, di) => (d.plays || []).map(p => ({ ...p, _drive: di })))
         .filter(p => p.wallclock && !skip.test((p.type && p.type.text) || ''))
         .map(p => {
+          p = { ...p, text: this.dropOverturned(p.text || '') };
           const snapClock = (p.text.match(/^\((\d+:\d+)\)/) || [])[1];
           const st = p.start || {};
           const offP = (p.teamParticipants || []).find(t => t.type === 'offense');
@@ -488,6 +489,8 @@ class Component extends DCLogic {
       const title = (teams.length === 2 ? `${teams[0].abbr} @ ${teams[1].abbr}` : 'Game ' + m[1]) + (dt ? ' · ' + dt : '');
     return { v: 27, gid: String(gid), state: (comp && comp.status && comp.status.type && comp.status.type.state) || '', dateShort: comp && comp.date ? new Date(comp.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '', homeId: teams[1] ? teams[1].id : '', title, venue: (j.gameInfo && j.gameInfo.venue && j.gameInfo.venue.fullName) || '', city: (() => { const a = j.gameInfo && j.gameInfo.venue && j.gameInfo.venue.address; return a ? [a.city, a.state].filter(Boolean).join(', ') : ''; })(), status: (comp && comp.status && comp.status.type && (comp.status.type.shortDetail || comp.status.type.detail)) || '', net: (comp && comp.broadcasts && comp.broadcasts[0] && ((comp.broadcasts[0].media && comp.broadcasts[0].media.shortName) || comp.broadcasts[0].type && comp.broadcasts[0].type.shortName)) || '', date: dt, plays, teams, drives: driveInfo };
   }
+  // review overturned → ESPN appends the reversed call "(Original Play: … sacked … TOUCHDOWN …)"; it never happened, so drop it before anything reads the text
+  dropOverturned(t) { return /OVERTURNED|REVERSED/i.test(t) ? t.replace(/\s*\(Original Play:[\s\S]*$/i, '') : t; }
   cleanText(raw) {
     let t = String(raw || '').replace(/^\(\d+:\d+\)\s*/, '').replace(/#\d+\s*/g, '').trim();
     for (let i = 0; i < 3; i++) t = t.replace(/^(No Huddle-Shotgun|No Huddle|Shotgun|Under Center|Pistol|Wildcat)[\s,-]*/i, '');
