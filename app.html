@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play Clipper</title>
-<meta name="pc-build" content="1795717042">
+<meta name="pc-build" content="1795717267">
 <script src="./vendor/react.production.min.js"></script>
 <script src="./vendor/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
@@ -646,7 +646,7 @@ class Component extends DCLogic {
     if (this.fileKey && this.samples.length) this.cachePut(this.fileKey, { samples: this.samples, duration: this.state.duration, done });
   }
   useCached(c) {
-    this.samples = c.samples; this.done = true;
+    this.samples = c.samples; this.done = true; this.awaitBug = true; clearTimeout(this._awaitTO); this._awaitTO = setTimeout(() => { if (this.awaitBug) { this.awaitBug = false; this.redetect(); } }, 15000);
     const v = this.anaVideo;
     if (v) { v.muted = true; v.src = this.state.src; }
     this.setupThumbs();
@@ -1336,7 +1336,7 @@ class Component extends DCLogic {
     const ck = this.fileKey + '|bug2';
     try {
       const saved = await this.cacheGet(ck);
-      const fresh = saved && saved.v === 12;
+      const fresh = saved && saved.v === 12; if (!(fresh && saved.complete)) { this.awaitBug = false; this.redetect(); }
       if (saved) { this.bug = saved.bug || {}; this.bugSnap = fresh ? saved.snap || {} : {}; this.flagSnap = saved.flag || {}; this.flagM = saved.flagM || {}; this.snapFix = saved.fix || {}; this.kickSnap = saved.kick || {}; this.tabM = saved.tabM || {}; if (!fresh && (saved.v || 0) < 12) for (const k in this.bug) if (!this.bug[k] || this.bug[k].s === 60) delete this.bug[k]; }
       if (fresh && saved.complete) { this.bugOn = true; this.redetect(); if (!saved.flagDone) { await this.bugEngine(); await this.flagPass(run); await this.cachePut(ck, { ...saved, flag: this.flagSnap, flagM: this.flagM, flagDone: true }); this.redetect(); } if (saved.fixDone !== 17) { this.snapFix = {}; this.redetect(); await this.bugEngine(); await this.verifySnaps(run); if (run !== this.bugRun) return; await this.cachePut(ck, { ...saved, bug: this.bug, flag: this.flagSnap, flagM: this.flagM, flagDone: true, fix: this.snapFix, fixDone: 17, ddDone: 0 }); this.redetect(); this.setState({ bugMsg: '' }); } if (saved.otDone !== 1 && this.state.game.plays.some(p => p.q >= 5)) { await this.bugEngine(); await this.otPass(run); if (run !== this.bugRun) return; this.redetect(); await this.kickPass(run); if (run !== this.bugRun) return; await this.cachePut(ck, { ...saved, bug: this.bug, snap: this.bugSnap, flag: this.flagSnap, flagM: this.flagM, flagDone: true, fix: this.snapFix, fixDone: 17, kick: this.kickSnap, tabM: this.tabM, kickDone: 2, otDone: 1 }); this.redetect(); this.setState({ bugMsg: '' }); await this.audit(); this.redetect(); return; } if (saved.kickDone !== 2) { await this.bugEngine(); await this.kickPass(run); if (run !== this.bugRun) return; await this.cachePut(ck, { ...saved, bug: this.bug, flag: this.flagSnap, flagM: this.flagM, flagDone: true, fix: this.snapFix, fixDone: 17, kick: this.kickSnap, tabM: this.tabM, kickDone: 2 }); this.redetect(); this.setState({ bugMsg: '' }); } await this.bugEngine(); if (!this._ss || this._ss.length !== this.samples.length) this._ss = this.samples.slice().sort((a, b) => a.t - b.t);
         this.sbSnap = saved.sb || null; this.sbLong = saved.sbLong || {}; this.sbBad = saved.sbBad || {};
@@ -1778,6 +1778,8 @@ class Component extends DCLogic {
   redetect() {
     if (this.unsorted) { this.samples.sort((a, b) => a.t - b.t); this.unsorted = false; }
     if (this.done && this.state.game && !this.bugOn && !this.bugBusy) setTimeout(() => this.runBug(), 0);
+    // cached game: show nothing until the saved scoreboard placement is loaded (showing the first placement first made clips 'jump' and their previews blank out)
+    if (this.awaitBug && !this.bugOn && this.state.game) { if (this.state.clips.length) this.setState({ clips: [] }); return; }
     let raw = this.state.game ? this.detectGame() : this.detect();
     if (this.state.game && this.bugOn && this.bug) raw = this.guardBug(raw);
     const clips = raw.map(c => this.edits[c.id] ? { ...c, ...this.edits[c.id] } : c).filter(c => !c.deleted);
@@ -2719,7 +2721,7 @@ class Component extends DCLogic {
     const teamById = {}; ((G && G.teams) || []).forEach(t => { teamById[t.id] = t; });
     const tot = this.scanTotal || st.duration, pct = tot ? Math.min(100, Math.round(st.curT / tot * 100)) : 0;
     const analyzing = st.phase === 'analyzing', hasVideo = !!st.src;
-    const noClipTxt = !hasVideo ? (st.importing ? 'Opening video…' : 'No video yet') : analyzing ? `Finding this play… ${pct}%` : 'Not found in video';
+    const noClipTxt = !hasVideo ? (st.importing ? 'Opening video…' : 'No video yet') : this.awaitBug && !this.bugOn ? 'Loading…' : analyzing ? `Finding this play… ${pct}%` : 'Not found in video';
     const groupsAll = this.board();
     const groupsRaw = st.qtr === 'all' ? groupsAll : groupsAll.filter(g => g.q === st.qtr);
     let shown = 0, withClip = 0;
