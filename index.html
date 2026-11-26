@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play Clipper</title>
-<meta name="pc-build" content="1795711740">
+<meta name="pc-build" content="1795711923">
 <script src="./vendor/react.production.min.js"></script>
 <script src="./vendor/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
@@ -1823,9 +1823,10 @@ class Component extends DCLogic {
       const c = list[k], p = P[c.id], pv = list[k - 1], pp = P[pv.id], cs = this.clockSec(p);
       if (!pp || !stopper.test(pp.text || '') || cs == null || p.q > 4 || pp.q !== p.q || c.snap - pv.snap > 120) continue;
       const qOk = (r) => r && (r.q == null || r.q === p.q);
-      let reads = 0, stop = false; for (let t = Math.ceil(pv.snap + 2); t <= c.snap - 1; t++) { const z2 = at(t - 2), z = at(t - 1), a = at(t); if (qOk(a)) reads++; if (qOk(a) && qOk(z) && qOk(z2) && z2.s === a.s && z.s === a.s) { stop = true; break; } if (!a) { stop = true; break; } }
-      if (stop || reads < 3) continue;
-      let to = null; for (let t = Math.ceil(c.snap + 1); t <= c.snap + 900; t++) { const z2 = at(t - 2), z = at(t - 1), a = at(t), b = at(t + 1); if (qOk(a) && a.q != null && a.q !== p.q) break; if (qOk(a) && qOk(z) && qOk(z2) && qOk(b) && z2.s === a.s && z.s === a.s && b.s < a.s && a.s >= cs - 1 && a.s <= cs + 7) { const w = this.wideSnap(t - 1.5, t + 1.5); to = w != null ? w : t + 0.3; break; } }
+      // change of possession (punt, kickoff, turnover): the next snap is never within 25s — and never before the kick
+      const swap = /punt|kickoff|intercept|fumble/i.test(pp.text || '') && c.snap - pv.snap < 25;
+      if (!swap) { let reads = 0, stop = false; for (let t = Math.ceil(pv.snap + 2); t <= c.snap - 1; t++) { const z2 = at(t - 2), z = at(t - 1), a = at(t); if (qOk(a)) reads++; if (qOk(a) && qOk(z) && qOk(z2) && z2.s === a.s && z.s === a.s) { stop = true; break; } if (!a) { stop = true; break; } } if (stop || reads < 3) continue; }
+      let to = null; for (let t = Math.ceil(Math.max(c.snap, swap ? pv.snap + 25 : c.snap) + 1); t <= c.snap + 900; t++) { const z2 = at(t - 2), z = at(t - 1), a = at(t), b = at(t + 1); if (qOk(a) && a.q != null && a.q !== p.q) break; if (qOk(a) && qOk(z) && qOk(z2) && qOk(b) && z2.s === a.s && z.s === a.s && b.s < a.s && a.s >= cs - 1 && a.s <= cs + 7) { const w = this.wideSnap(t - 1.5, t + 1.5); to = w != null ? w : t + 0.3; break; } }
       if (to == null || list.some(o => o !== c && Math.abs(o.snap - to) < 6)) continue;
       const d = to - c.snap; moved[c.id] = { ...c, snap: to, start: c.start + d, end: c.end + d };
     }
