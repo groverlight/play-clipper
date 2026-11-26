@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play Clipper</title>
-<meta name="pc-build" content="1795708884">
+<meta name="pc-build" content="1795709228">
 <script src="./vendor/react.production.min.js"></script>
 <script src="./vendor/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
@@ -1777,7 +1777,8 @@ class Component extends DCLogic {
   redetect() {
     if (this.unsorted) { this.samples.sort((a, b) => a.t - b.t); this.unsorted = false; }
     if (this.done && this.state.game && !this.bugOn && !this.bugBusy) setTimeout(() => this.runBug(), 0);
-    const raw = this.state.game ? this.detectGame() : this.detect();
+    let raw = this.state.game ? this.detectGame() : this.detect();
+    if (this.state.game && this.bugOn && this.bug) raw = this.guardBug(raw);
     const clips = raw.map(c => this.edits[c.id] ? { ...c, ...this.edits[c.id] } : c).filter(c => !c.deleted);
     let raw2 = [];
     if (this.state.game) {
@@ -1789,6 +1790,25 @@ class Component extends DCLogic {
     this.pumpThumbs();
   }
 
+  // Rule 22: the scoreboard passes may only move a clip if the scoreboard backs the new spot better than the first placement.
+  // Evidence at a snap: clock stopped before + running after (+2), clock within ESPN's 0–7s window (+1), far off (−1), no scoreboard at all (−1),
+  // a TD whose clock already reads ESPN's end clock (−2, the play is over). Clemson play 02 was right on load, then the passes moved it 10s late.
+  guardBug(raw) {
+    let base; this.bugOn = false; try { base = this.detectGame(); } finally { this.bugOn = true; }
+    const B = new Map(base.map(c => [c.id, c])), P = {}; this.state.game.plays.forEach(p => { P[p.id] = p; });
+    const at = (t) => { const r = this.bug[this.bkey(Math.round(t))]; return r && r.s != null ? r : null; };
+    const ev = (p, t) => {
+      const qOk = (r) => r && (r.q == null || r.q === p.q), z = [at(t - 3), at(t - 2), at(t - 1)], y = [at(t + 1), at(t + 2)];
+      if ([...z, at(t), ...y].every(r => !r)) return -1;
+      const a = z[2] || z[1], b = y[1] || y[0], cs = this.clockSec(p); let e = 0;
+      if (qOk(z[0]) && qOk(z[2]) && z[0].s === z[2].s && qOk(a) && qOk(b) && b.s < a.s) e += 2;
+      if (cs != null && qOk(a)) { const sd = a.s - cs; if (p.clkEnd) { if (sd < 2) e -= 2; } else if (sd >= -1 && sd <= 7) e += 1; else if (sd < -3 || sd > 10) e -= 1; }
+      return e;
+    };
+    const out = raw.map(c => { const b = B.get(c.id), p = P[c.id]; if (!b || !p || b.est || c.est || Math.abs(b.snap - c.snap) < 2) return c; return ev(p, b.snap) > ev(p, c.snap) ? { ...b, guarded: true } : c; });
+    // never let a reverted clip land on another clip
+    return out.map((c, i) => c.guarded && out.some((o, j) => j !== i && !o.est && Math.abs(o.snap - c.snap) < 6) ? raw[i] : c);
+  }
   savePng(c) {
     const v = this.hv; if (!v || !v.videoWidth) return;
     const cv = document.createElement('canvas'); cv.width = v.videoWidth; cv.height = v.videoHeight;
