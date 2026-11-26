@@ -316,7 +316,7 @@ class Component extends DCLogic {
     };
     this.onResize = () => { this.drawGraph(); clearTimeout(this._rzTO); this._rzTO = setTimeout(() => this.forceUpdate(), 100); };
     window.addEventListener('keydown', this.onKey);
-    this.onUiKey = (e) => { const tag = ((document.activeElement || {}).tagName || ''); if (e.key === 'Escape') { if (this.state.schedOpen) { this.setState({ schedOpen: false }); return; } } if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(tag) && !e.metaKey && !e.ctrlKey) { e.preventDefault(); this._focusSearch = true; if (this.searchEl) { this.searchEl.focus(); this.searchEl.select(); } this.setState({ qFocus: true, panel: 'search' }, () => this.recenter()); } };
+    this.onUiKey = (e) => { if (e.shiftKey && e.altKey && e.code === 'KeyD') { e.preventDefault(); const t = this.diag(); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).catch(() => { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }); return; } const tag = ((document.activeElement || {}).tagName || ''); if (e.key === 'Escape') { if (this.state.schedOpen) { this.setState({ schedOpen: false }); return; } } if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(tag) && !e.metaKey && !e.ctrlKey) { e.preventDefault(); this._focusSearch = true; if (this.searchEl) { this.searchEl.focus(); this.searchEl.select(); } this.setState({ qFocus: true, panel: 'search' }, () => this.recenter()); } };
     window.addEventListener('keydown', this.onUiKey);
     this.loadSchedule();
     // restore the view after a self-update
@@ -2345,6 +2345,13 @@ class Component extends DCLogic {
       location.reload();
     }, 30000);
   }
+  diag() {
+    const G = this.state.game, clips = new Map((this.state.clips || []).map(c => [c.id, c])), F = this.auditFlags || {}, B = this.bug || {};
+    const bg = (t) => { const r = B[this.bkey(t)]; return r ? (r.q || '?') + 'Q ' + Math.floor(r.s / 60) + ':' + String(r.s % 60).padStart(2, '0') : '-'; };
+    const lines = ['file ' + (this.fileKey || '') + ' dur ' + Math.round(this.state.duration || 0) + ' phase ' + this.state.phase + ' bugOn ' + !!this.bugOn + ' unit ' + this.state.unit];
+    ((G && G.plays) || []).forEach((p, i) => { const c = clips.get(p.id); lines.push([i, p.id, 'Q' + p.q + ' ' + p.clock, (p.down || '') + (p.spot ? ' @' + p.spot : ''), p.st ? 'ST' : (p.off === this.TEAM ? 'OFF' : 'DEF'), String(p.text || '').slice(0, 60), c ? `st ${c.start.toFixed(1)} sn ${c.snap.toFixed(1)} en ${c.end.toFixed(1)}${c.est ? ' EST' : ''} bug ${bg(c.snap - 0.5)} / ${bg(c.snap + 2)}` : 'NO CLIP', (F[p.id] || []).join(',')].join(' | ')); });
+    return lines.join('\n');
+  }
   // ---- placeholder "AI" notes: written from ESPN stats until a real model is connected ----
   noteFor(c, F, t, nx) {
     const s = c.sum || {}; if (!s.result) return '';
@@ -2421,7 +2428,7 @@ class Component extends DCLogic {
           else if (y > 0) up(Math.min(y, 10) / 10 * 32, col, t._type === 'pass' ? y >= 16 : y >= 12);
           else if (y < 0) dn(Math.min(-y, 10) / 10 * 12, col);
           else f = { ...f, fTop: '26px', fH: '6px', fRad: '2px', fBg: TRACK, fEdge: 'inset 0 0 0 1.5px ' + col };
-          return { i: t.i, down: t.down, enter: t.enter, tip: t.tip, flag: t.flagD === 'block', flagWhy: t.flagWhy || '', inDrive: String(t.inDrive).padStart(2, '0'), num: String((t._c && t._c.num) || '').padStart(2, '0'),
+          return { i: t.i, down: t.down, enter: t.enter, tip: t.tip, flag: false, flagWhy: t.flagWhy || '', inDrive: String(t.inDrive).padStart(2, '0'), num: String((t._c && t._c.num) || '').padStart(2, '0'),
             bg: on ? '#eceae6' : 'transparent', ring: 'none', z: on ? '1' : '0', fw: on ? '700' : '400', fg: on ? '#161615' : '#8b8984', op: searching && !matchSet.has(t.i) ? '0.25' : '1', isTd: !!t._td, isFd: !t._td && !!t._fd, mk: on ? '#161615' : d.here ? '#eceae6' : '#a3a19c', track: on && track === TRACK ? '#c9c7c2' : track, ...f };
         }) };
     });
@@ -2461,7 +2468,7 @@ class Component extends DCLogic {
       gameMsg: st.gameLoading ? 'Loading game…' : st.gameError || 'Pick a game from the schedule', gameMsgColor: st.gameError ? '#f08a6a' : '#8b8984',
       ...(() => { const bm = !analyzing && !st.importing && st.bugMsg ? String(st.bugMsg) : '', fr = /(\d+)\s*\/\s*(\d+)/.exec(bm), bp = fr ? Math.round(+fr[1] / +fr[2] * 100) + '%' : /(\d+)%/.test(bm) ? /(\d+)%/.exec(bm)[1] + '%' : '';
         return { showProg: analyzing || !!st.importing || !!bm, progLabel: st.importing ? 'Opening video…' : bm ? bm.replace(/\s*·\s*\d+\s*\/\s*\d+\s*$/, '').replace(/\s*·\s*\d+%.*$/, '') : 'Finding plays' + (this.etaMin && this.rateS ? ` · ~${this.etaMin} min left` : ''), progPct: st.importing ? '' : bm ? bp : pctTxt, progW: st.importing ? '4%' : bm ? (bp || '50%') : pctTxt,
-          showReview: !analyzing && !st.importing && !bm && !!st.auditN, reviewTxt: `${st.auditN} to review`, nextFlag: b.nextFlag }; })(),
+          showReview: false, reviewTxt: `${st.auditN} to review`, nextFlag: b.nextFlag }; })(),
       scanTip: (b.statusSub || 'Reading the video') + '. Keep this tab open.',
       toggleSched: () => { const o = !st.schedOpen; this.setState({ schedOpen: o }); if (o && !st.sched) this.loadSchedule(); },
       schedOpen: !!st.schedOpen, schedBtnBg: st.schedOpen ? '#232321' : 'transparent', schedBtnBorder: st.schedOpen ? '#77756f' : '#3a3a37',
