@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play Clipper</title>
-<meta name="pc-build" content="1795723033">
+<meta name="pc-build" content="1795723285">
 <script src="./vendor/react.production.min.js"></script>
 <script src="./vendor/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
@@ -1913,6 +1913,9 @@ class Component extends DCLogic {
     // no clip opens on a crowd / close-up / graphic: if the first frames aren't the field, start where the field shot begins (before the snap)
     const S = this.samples || [], ST = this._ssT && this._ssT.length === S.length ? this._ssT : (this._ssT = S.map(x => x.t));
     const fieldAt = (t) => { let lo = 0, hi = ST.length; while (lo < hi) { const m = (lo + hi) >> 1; if (ST[m] < t) lo = m + 1; else hi = m; } const w = S.slice(lo, lo + 5); return w.length ? w.reduce((a, x) => a + x.g, 0) / w.length >= 0.4 : true; };
+    // snap sitting on a crowd / close-up / graphic right before the cut to the wide set → the snap is the set→motion in that wide shot (Clemson offense 52, Q3 0:13 false start: snap sat 0.4s before the cut, clip opened on 3s of sideline)
+    for (let i = 0; i < fin.length; i++) { const c = fin[i]; if (c.est || fieldAt(c.snap)) continue; let cut = null; for (let t = c.snap + 0.1; t <= c.snap + 3; t += 0.1) if (fieldAt(t)) { cut = t; break; } if (cut == null) continue;
+      const w = this.wideSnap(cut - 0.2, cut + 10); if (w == null || w <= c.snap) continue; if (fin.some((o, j) => j !== i && !o.est && o.snap > c.snap - 1 && o.snap < w + 6)) continue; fin[i] = this.reclip(c, w); }
     for (let i = 0; i < fin.length; i++) { const c = fin[i]; if (c.est || fieldAt(c.start + 0.05)) continue; for (let t = c.start + 0.2; t <= c.snap - 0.5; t += 0.2) if (fieldAt(t)) { fin[i] = { ...c, start: t }; break; } }
     return fin;
   }
