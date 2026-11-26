@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play Clipper</title>
-<meta name="pc-build" content="1795712685">
+<meta name="pc-build" content="1795712808">
 <script src="./vendor/react.production.min.js"></script>
 <script src="./vendor/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
@@ -2436,12 +2436,22 @@ class Component extends DCLogic {
     }, 60000);
   }
   async copyReport() {
+    this.exportDebug();
     // full scoreboard clock reads (1s grid) so placement can be rebuilt and tested offline against the whole game
     let B = this.bug && Object.keys(this.bug).length ? this.bug : (((await this.cacheGet(this.fileKey + '|bug2')) || {}).bug || {});
     const enc = Object.keys(B).map(Number).sort((a, b) => a - b).filter(k => B[k] && B[k].s != null).map(k => k + ',' + B[k].s + ',' + (B[k].q == null ? '' : B[k].q)).join(';');
     const t = this.diag() + '\nBUG ' + enc, done = () => { this.setState({ copiedMsg: true }); clearTimeout(this._copTO); this._copTO = setTimeout(() => this.setState({ copiedMsg: false }), 4000); };
     const fallback = () => { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e) {} ta.remove(); done(); };
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, fallback); else fallback();
+  }
+  // everything the clip placement uses (no video): saved as a file so it can be replayed offline
+  async exportDebug() {
+    try {
+      const fk = this.fileKey; if (!fk) return;
+      const data = { build: this.build(), fileKey: fk, duration: this.state.duration, game: this.state.game, scan: await this.cacheGet(fk), bug2: await this.cacheGet(fk + '|bug2'), dd: await this.cacheGet(fk + '|dd') };
+      const blob = new Blob([JSON.stringify(data)], { type: 'application/json' }), a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = 'play-clipper-debug.json'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    } catch (e) { console.warn('debug export failed', e); }
   }
   diag() {
     const G = this.state.game, clips = new Map((this.state.clips || []).map(c => [c.id, c])), F = this.auditFlags || {}, B = this.bug || {};
