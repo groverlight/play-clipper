@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play Clipper</title>
-<meta name="pc-build" content="1795712808">
+<meta name="pc-build" content="1795713975">
 <script src="./vendor/react.production.min.js"></script>
 <script src="./vendor/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
@@ -1791,40 +1791,130 @@ class Component extends DCLogic {
     this.pumpThumbs();
   }
 
+  // ===== Clock placement (one rule): a play starts when the scoreboard clock starts running from that play's snap clock. =====
+  // Reads come from the 1s scoreboard scan (this.bug). Works in order through the game so each play lands after the previous one.
+  //   normal play: ESPN's clock = snap clock → first clock START (frozen ≥2s → ticking) at ESPN −1…+8 after the previous snap
+  //                (no start: clock was already running → when it passes ESPN +1)
+  //   TD / end-clock plays: find where the clock STOPS on ESPN's clock; the snap is the last start before that stop
+  //                (clock running into the play → the snap motion in the 3–14s before the stop)
+  //   after a punt / kickoff / turnover the next snap is ≥25s later; any play ≥6s after the previous.
+  // Returns {playId: snapTime} for the plays it can place; others keep their current clip.
+  clockPlace() {
+    const G = this.state.game, B = this.bug || {}; if (!G) return {};
+    const R = Object.keys(B).map(Number).filter(t => B[t] && B[t].s != null).sort((a, b) => a - b).map(t => ({ t, s: B[t].s, q: B[t].q }));
+    // fill unknown quarters from neighbours (OCR often misses the quarter digit)
+    let lastQ = null; for (const r of R) { if (r.q != null) lastQ = r.q; else r.qi = lastQ; } let nextQ = null; for (let i = R.length - 1; i >= 0; i--) { if (R[i].q != null) nextQ = R[i].q; else if (R[i].qi == null || R[i].qi !== nextQ) R[i].qi = R[i].qi ?? nextQ; }
+    const Q = (r) => r.q != null ? r.q : r.qi;
+    const starts = [], stops = [];
+    for (let i = 1; i < R.length - 1; i++) {
+      const z = R[i - 1], a = R[i], b = R[i + 1];
+      if (b.t - a.t > 5 || a.t - z.t > 1.6) continue;
+      if (z.s === a.s && a.t - z.t >= 0.5 && b.s < a.s && a.s - b.s <= Math.ceil(b.t - a.t) + 1) { let k = i; while (k > 0 && R[k - 1].s === a.s && R[k].t - R[k - 1].t <= 4) k--; if (a.t - R[k].t >= 1.5) starts.push({ t: Math.max(a.t, b.t - (a.s - b.s)), v: a.s, q: Q(a) }); }
+    }
+    // stops: ticking clock that then holds its value (the next read may come much later — replay / no scoreboard)
+    for (let i = 1; i < R.length; i++) { const z = R[i - 1], a = R[i]; if (!(z.s > a.s && z.s - a.s <= 2 && a.t - z.t <= 1.6)) continue; const nx = R.slice(i + 1, i + 6).filter(x => x.t > a.t + 0.4 && x.t - a.t <= 45); if (nx.filter(x => x.s === a.s).length >= 2 && !nx.some(x => x.s < a.s)) stops.push({ t: a.t, v: a.s, q: Q(a) }); }
+    const plays = G.plays, out = {}, skip = /kickoff|extra point|kick attempt|two-point|PAT|timeout|end of/i;
+    const preRe = /False Start|Delay of Game|Encroachment|Neutral Zone Infraction|Illegal (Formation|Shift|Substitution|Snap)|Too Many Men|Offside/i;
+    let prevT = 0, prevSwap = false, prevQ = 1;
+    for (const p of plays) {
+      const txt = (p.type || '') + ' ' + (p.text || ''), cs = this.clockSec(p);
+      const swapAfter = /punt|kickoff|intercept|fumble/i.test(p.text || '') || p.pat;
+      if (p.q > 4 || cs == null || p.pat || skip.test(txt) || (/NO PLAY/.test(p.text || '') && preRe.test(p.text || ''))) { if (swapAfter) prevSwap = true; continue; }
+      if (p.q !== prevQ) { prevQ = p.q; }
+      const lo = prevT + (prevSwap ? 25 : 6), hi = lo + 900, sameQ = (x) => x.q == null || x.q === p.q;
+      let snap = null;
+      if (p.clkEnd) {
+        const st = stops.find(x => x.t > lo + 3 && x.t < hi && sameQ(x) && Math.abs(x.v - cs) <= 1);
+        if (st) {
+          const s0 = [...starts].reverse().find(x => x.t < st.t - 2 && x.t > st.t - 25 && x.t >= lo - 1 && sameQ(x));
+          if (s0) snap = s0.t; else { const w = this.wideSnap(Math.max(lo, st.t - 14), st.t - 3, true); snap = w != null ? w : st.t - 6; }
+        }
+      } else {
+        // earliest of: a clock start at ESPN's time, or the ticking clock passing ESPN's time (clock already running at the snap)
+        const s0 = starts.find(x => x.t >= lo && x.t < hi && sameQ(x) && x.v >= cs - 1 && x.v <= cs + 8);
+        let r1 = null; for (let i = 1; i < R.length; i++) { const x = R[i], z = R[i - 1]; if (x.t < lo || x.t >= hi) continue; if (Q(x) === p.q && x.s <= cs + 1 && x.s >= cs - 2 && z.s > x.s && z.s - x.s <= 2 && x.t - z.t <= 1.6) { r1 = x.t - (cs + 1 - x.s); break; } }
+        if (r1 != null) { const fz = [...R].reverse().find(x => x.t <= r1 + 1 && x.t >= r1 - 8 && R.some(y => y !== x && y.s === x.s && Math.abs(y.t - x.t) <= 4 && y.t < x.t)); if (fz) { const nxt = R.find(y => y.t > fz.t); if (nxt && nxt.s < fz.s) r1 = Math.min(r1, fz.t + 0.5); } }
+        const c = [s0 && s0.t, r1].filter(v => v != null); if (c.length) snap = Math.min(...c);
+        // clock held at the snap clock, then the scoreboard disappears (replay) → first snap motion after the hold
+        if (snap == null) { const hold = R.filter(x => x.t >= lo && x.t < hi && sameQ(x) && x.s >= cs && x.s <= cs + 8); if (hold.length >= 3) { const last = hold[hold.length - 1]; const w = this.wideSnap(last.t - 2, last.t + 25); if (w != null) snap = w; } }
+      }
+      if (snap == null) { if (swapAfter) prevSwap = true; continue; }
+      const w = this.wideSnap(snap - 1.5, snap + 1.2); if (w != null) snap = w;
+      out[p.id] = snap; prevT = snap; prevSwap = swapAfter;
+    }
+    return out;
+  }
   // Rule 22: the scoreboard passes may only move a clip if the scoreboard backs the new spot better than the first placement.
   // Evidence at a snap: clock stopped before + running after (+2), clock within ESPN's 0–7s window (+1), far off (−1), no scoreboard at all (−1),
   // a TD whose clock already reads ESPN's end clock (−2, the play is over). Clemson play 02 was right on load, then the passes moved it 10s late.
   guardBug(raw) {
     let base; this.bugOn = false; try { base = this.detectGame(); } finally { this.bugOn = true; }
-    const B = new Map(base.map(c => [c.id, c])), P = {}; this.state.game.plays.forEach(p => { P[p.id] = p; });
-    const at = (t) => { const r = this.bug[this.bkey(Math.round(t))]; return r && r.s != null ? r : null; };
-    // Evidence for a snap at t = the scoreboard clock right before it sits where this play's snap clock should be.
-    //   normal play: ESPN's clock is the snap clock → broadcast reads ESPN −1…+7
-    //   TD (ESPN = end clock): previous play stopped the clock → reads that play's clock −2…+1; else at least 3s above the end clock
-    // No scoreboard anywhere in ±3s → a graphic/break (−1). Both placements are scored; the better one wins, ties keep the scoreboard's.
-    // Clemson: the first placement was right in Q1 (02, 03) and ~4 min late through Q2 (18, 19); the scoreboard's was the reverse.
-    const plays = this.state.game.plays, idx = {}; plays.forEach((p, i) => { idx[p.id] = i; });
-    const prevStop = (p) => { for (let j = idx[p.id] - 1; j >= 0; j--) { const x = plays[j]; if (x.pat || /kickoff|timeout/i.test((x.type || '') + ' ' + (x.text || ''))) continue; return x.q === p.q && !x.clkEnd && /incomplete|NO PLAY|out of bounds|PENALTY|spiked|punt|field goal/i.test(x.text || '') ? this.clockSec(x) : null; } return null; };
-    const ev = (p, t) => {
-      const qOk = (r) => r && (r.q == null || r.q === p.q);
-      if ([-3, -2, -1, 0, 1, 2, 3].every(d => !at(t + d))) return -1;
-      const r = at(t - 0.5) || at(t - 1) || at(t - 1.5), cs = this.clockSec(p); if (!r || cs == null) return 0; if (!qOk(r)) return -1;
-      let lo = cs - 1, hi = cs + 7; if (p.clkEnd) { const pc = prevStop(p); if (pc != null) { lo = pc - 2; hi = pc + 1; } else { lo = cs + 3; hi = cs + 20; } }
-      return r.s >= lo && r.s <= hi ? 1 : -1;
-    };
-    const out = raw.map(c => { const b = B.get(c.id), p = P[c.id]; if (!b || !p || b.est) return c; if (c.est) return { ...b, guarded: true }; if (Math.abs(b.snap - c.snap) < 2) return c; return ev(p, b.snap) > ev(p, c.snap) ? { ...b, guarded: true } : c; });
-    // both placements unsupported (graphic, break, wrong spot) → look ±5 min for where the clock starts from this play's snap clock (Clemson offense 03 sat on a stats graphic in one placement and on play 04 in the other)
-    for (let i = 0; i < out.length; i++) {
-      const c = out[i], p = P[c.id]; if (!p || c.est || p.q > 4 || ev(p, c.snap) >= 0) continue;
-      const cs = this.clockSec(p); if (cs == null) continue; const qOk = (r) => r && (r.q == null || r.q === p.q);
-      let lo = cs - 1, hi = cs + 7; if (p.clkEnd) { const pc = prevStop(p); if (pc == null) continue; lo = pc - 2; hi = pc + 1; }
-      let best = null;
-      for (let t = Math.max(2, Math.round(c.snap - 300)); t <= c.snap + 300; t++) { const z = at(t - 1), a = at(t), b = at(t + 1); if (!(qOk(a) && qOk(z) && b && z.s === a.s && b.s < a.s && a.s >= lo && a.s <= hi)) continue; const w = this.wideSnap(t - 1.5, t + 1.5), cand = w != null ? w : t + 0.3; if (out.some((o, j) => j !== i && !o.est && Math.abs(o.snap - cand) < 6)) continue; if (best == null || Math.abs(cand - c.snap) < Math.abs(best - c.snap)) best = cand; }
-      if (best != null) { const d = best - c.snap; out[i] = { ...c, snap: best, start: c.start + d, end: c.end + d, rescued: true }; }
+    return this.finalize(raw, base);
+  }
+  // Rule 24 — one check, then targeted fixes (tested offline against the whole Clemson game):
+  // the scoreboard placement is kept when its clock agrees with ESPN; a failing play takes the first-placement spot if THAT agrees,
+  // else the first clock start at its time between its good neighbours. End-clock plays (TDs) start where the clock started running.
+  finalize(raw, base) {
+    const G = this.state.game, P = {}, idx = {}; G.plays.forEach((p, i) => { P[p.id] = p; idx[p.id] = i; });
+    const Bk = this.bug || {}, R = Object.keys(Bk).map(Number).filter(t => Bk[t] && Bk[t].s != null).sort((x, y) => x - y).map(t => ({ t, s: Bk[t].s, q: Bk[t].q }));
+    const near = (t, tol = 1.1) => { let lo = 0, hi = R.length; while (lo < hi) { const m = (lo + hi) >> 1; if (R[m].t < t - tol) lo = m + 1; else hi = m; } let best = null; for (let j = lo; j < R.length && R[j].t <= t + tol; j++) if (!best || Math.abs(R[j].t - t) < Math.abs(best.t - t)) best = R[j]; return best; };
+    const span = (a, b) => R.filter(r => r.t >= a && r.t <= b);
+    const skip = /kickoff|extra point|kick attempt|two-point|PAT|timeout|end of/i, preRe = /False Start|Delay of Game|Encroachment|Neutral Zone|Illegal (Formation|Shift|Substitution|Snap)|Too Many Men|Offside/i;
+    // kicks by type/result, not text: a TD's text also contains its "kick attempt" (that hid every TD from the checks)
+    const live = (p) => p && p.q <= 4 && !p.pat && !skip.test(p.type || '') && !/^(Kickoff|Punt|Extra point)/.test((p.sum && p.sum.result) || '') && !(/NO PLAY/.test(p.text || '') && preRe.test(p.text || '')) && this.clockSec(p) != null;
+    // where an end-clock play's run started: last frozen→ticking before the clock stops on ESPN's time
+    const runStart = (p, t0) => { const cs = this.clockSec(p), w = span(t0 - 20, t0 + 25); const stop = w.find((r, j) => j > 0 && r.t > t0 && Math.abs(r.s - cs) <= 1 && w[j - 1].s > r.s); if (!stop) return null; for (let j = w.indexOf(stop) - 1; j > 0; j--) { const b = w[j]; if (b.t < stop.t - 25) break; const nx = w[j + 1]; if (!nx || nx.s >= b.s) continue; let k = j; while (k > 0 && w[k - 1].s === b.s) k--; if (b.t - w[k].t >= 1.6) return Math.max(b.t, nx.t - (b.s - nx.s)); } return null; };
+    let others = null; const ok = (p, t) => { if (t == null) return false; const cs = this.clockSec(p); if (cs == null || p.q > 4) return true; const w = span(t - 3, t + 15); if (!w.length) return false;
+      if (p.clkEnd) { const after = w.filter(r => r.t > t + 0.5).map(r => r.s); if (!after.length || Math.min(...after) > cs + 1) return false; const r = near(t - 1); if (r && r.s <= cs + 1) return false; const rs = runStart(p, t); return rs == null || Math.abs(rs - t) <= 2.5; }
+      const r = near(t - 1) || near(t - 0.5) || near(t - 1, 3); if (!r) return false; const sd = r.s - cs; if (sd < -1 || sd > 8) return false;
+      // rule 2: clock frozen through the clip → not a live play (Clemson Q3 0:13 run sat on a frozen 0:13)
+      const f0 = near(t - 0.5), f8 = near(t + 8); if (f0 && f8 && f0.s === f8.s && !/incomplete/i.test(p.text || '')) return false;
+      // inside the previous play: clock already ticking at t, and that run started at another clip's snap (Clemson Q2 0:39 sat in the 0:44 play)
+      const r1 = near(t + 1); if (r && r1 && r1.s < r.s && others) { const back = span(t - 30, t - 2.5); for (let j = back.length - 1; j > 0; j--) { const b = back[j], nx = R.find(x => x.t > b.t); if (!nx || nx.s >= b.s) continue; let k = j; while (k > 0 && back[k - 1].s === b.s) k--; if (b.t - back[k].t >= 1.6) { const rs = b.t + 0.5; if (t - rs < 12 && others.some(o => o.id !== p.id && !o.est && Math.abs(o.snap - rs) <= 3)) return false; break; } } }
+      return true; };
+    const B = new Map(base.map(c => [c.id, c])), out = raw.map(c => ({ ...c })); others = out;
+    const order = out.map((c, i) => i).filter(i => !out[i].est && P[out[i].id]).sort((x, y) => idx[out[x].id] - idx[out[y].id]);
+    const shift = (c, t) => { const d = t - c.snap; return { ...c, snap: t, start: c.start + d, end: c.end + d, fixed: true }; };
+    for (let k = 0; k < order.length; k++) {
+      const i = order[k], c = out[i], p = P[c.id]; if (!live(p)) continue;
+      if (p.clkEnd) { const rs = runStart(p, c.snap - 2); if (rs != null && Math.abs(rs - c.snap) > 2.5) { const w = this.wideSnap(rs - 4, rs + 1.2, true); out[i] = shift(c, w != null ? w : rs - 0.5); } }
+      if (ok(p, out[i].snap)) continue;
+      const b = B.get(c.id); if (b && !b.est && ok(p, b.snap)) { out[i] = { ...b, guarded: true }; continue; }
+      // targeted search between the nearest good neighbours
+      let lo = 0, hi = this.state.duration || 1e9; for (let j = k - 1; j >= 0; j--) { const o = out[order[j]]; if (live(P[o.id]) && ok(P[o.id], o.snap)) { lo = o.snap + 6; break; } } for (let j = k + 1; j < order.length; j++) { const o = out[order[j]]; if (live(P[o.id]) && ok(P[o.id], o.snap)) { hi = o.snap - 6; break; } }
+      const cs = this.clockSec(p); let cand = null, cand2 = null;
+      const held = (t0) => { const back = R.filter(r => r.t <= t0 + 0.5 && r.t >= t0 - 8); for (let j = back.length - 1; j > 0; j--) { const b = back[j], nx = R.find(r => r.t > b.t); if (!nx || nx.s >= b.s) continue; let k = j; while (k > 0 && back[k - 1].s === b.s) k--; if (b.t - back[k].t >= 1.6) return b.t + 0.5; } return null; };
+      const free = (t) => !out.some((o, j) => j !== i && !o.est && Math.abs(o.snap - t) < 12);   // never onto (or right after) another clip: snaps are ≥12s apart even in hurry-up
+      for (let j = 1; j < R.length - 1; j++) { const z = R[j - 1], a = R[j], nx = R[j + 1]; if (a.t < lo || a.t > hi) continue; if (a.q != null && a.q !== p.q) continue;
+        if (cand == null && !p.clkEnd && z.s === a.s && nx.s < a.s && a.s >= cs - 1 && a.s <= cs + 8 && nx.t - a.t <= 5) { const t0 = Math.max(a.t, nx.t - (a.s - nx.s)); const w = this.wideSnap(t0 - 4, t0 + 1.2, true); const t1 = w != null ? w : t0 - 0.5; if (ok(p, t1) && free(t1)) cand = t1; }
+        if (cand2 == null && !p.clkEnd && z.s > a.s && a.s <= cs + 1 && a.s >= cs - 2 && a.t - z.t <= 1.6) { let t0 = a.t - (cs + 1 - a.s); const h = held(t0); if (h != null && h < t0) t0 = h; if (ok(p, t0) && free(t0)) cand2 = t0; }
+        if (cand != null) break; }
+      if (cand == null) cand = cand2;
+      if (cand != null) out[i] = shift(c, cand);
     }
-    // never let a reverted clip land on another clip
-    const fin = out.map((c, i) => c.guarded && out.some((o, j) => j !== i && !o.est && Math.abs(o.snap - c.snap) < 6) ? raw[i] : c);
-    return this.afterStop(fin, P, at);
+    const fin = this.afterStop(out, P, (t) => { const r = Bk[this.bkey(Math.round(t))]; return r && r.s != null ? r : null; });
+    // kicks (PAT, kickoff) come after the score and before the next snap, in order (Clemson: two kickoffs sat before their FG / TD)
+    const ord2 = fin.map((c, i) => i).filter(i => P[fin[i].id]).sort((x, y) => idx[fin[x].id] - idx[fin[y].id]);
+    for (let k = 0; k < ord2.length; k++) {
+      const i = ord2[k], c = fin[i], p = P[c.id]; if (!(p.pat || /kickoff/i.test((p.type || '') + ' ' + ((p.sum && p.sum.result) || '')))) continue;
+      const pv = k > 0 ? fin[ord2[k - 1]] : null; let nx = null; for (let j = k + 1; j < ord2.length; j++) { const o = fin[ord2[j]]; if (!o.est) { nx = o; break; } }
+      const lo = pv ? pv.snap + (p.pat ? 12 : 20) : 0, hi = nx ? nx.snap - 8 : (this.state.duration || 1e9);
+      if (c.snap >= lo && c.snap <= hi && !c.est) continue; if (hi <= lo) continue;
+      const w = this.wideSnap(lo, hi); const t = w != null ? w : (lo + Math.min(hi, lo + 60)) / 2, d = t - c.snap; fin[i] = { ...c, snap: t, start: c.start + d, end: c.end + d, est: w == null && c.est, fixed: true };
+    }
+    return fin;
+  }
+  // first moment after `from` where the clock starts ticking from this play's snap clock (hold ≥1.6s → ticking within 5s);
+  // if the scoreboard holds that clock and then disappears (replay / graphic), the first snap motion after the hold
+  clockStart(p, from, to) {
+    const Bk = this.bug || {}, cs = this.clockSec(p); if (cs == null) return null;
+    const R = Object.keys(Bk).map(Number).filter(t => t >= from - 6 && t <= to && Bk[t] && Bk[t].s != null).sort((a, b) => a - b).map(t => ({ t, s: Bk[t].s, q: Bk[t].q }));
+    const inQ = (r) => r.q == null || r.q === p.q;
+    for (let j = 1; j < R.length - 1; j++) { const a = R[j], nx = R[j + 1]; if (a.t < from || !inQ(a)) continue; if (a.q != null && a.q !== p.q) break; if (!(nx.s < a.s && nx.t - a.t <= 5 && a.s >= cs - 1 && a.s <= cs + 8)) continue; let k = j; while (k > 0 && R[k - 1].s === a.s) k--; if (a.t - R[k].t < 1.6) continue; const t0 = Math.max(a.t, nx.t - (a.s - nx.s)); const w = this.wideSnap(t0 - 4, t0 + 1.2, true); return w != null ? w : t0 - 0.5; }
+    // a held clock = one value read over ≥3s (a ticking clock passes through each value in ~1s)
+    const hv = R.filter(r => r.t >= from && inQ(r) && r.s >= cs && r.s <= cs + 8); const byV = {}; hv.forEach(r => { (byV[r.s] = byV[r.s] || []).push(r); }); const held = Object.values(byV).filter(g => g[g.length - 1].t - g[0].t >= 3).sort((a, b) => a[0].t - b[0].t)[0];
+    if (held) { const last = held[held.length - 1]; const w = this.wideSnap(last.t - 1, last.t + 8); return w != null ? w : last.t + 0.5; }
+    return null;
   }
   // Rule 23: after a play that stops the clock (punt, kick, turnover, incompletion, out of bounds, flag, score, timeout) the clock stays stopped
   // until the next snap. If the scoreboard clock runs without a stop from the previous snap to this one, this clip is still inside the previous
@@ -1842,6 +1932,7 @@ class Component extends DCLogic {
       const swap = /punt|kickoff|intercept|fumble/i.test(pp.text || '') && c.snap - pv.snap < 25;
       if (!swap) { let reads = 0, stop = false; for (let t = Math.ceil(pv.snap + 2); t <= c.snap - 1; t++) { const z2 = at(t - 2), z = at(t - 1), a = at(t); if (qOk(a)) reads++; if (qOk(a) && qOk(z) && qOk(z2) && z2.s === a.s && z.s === a.s) { stop = true; break; } if (!a) { stop = true; break; } } if (stop || reads < 3) continue; }
       let to = null; for (let t = Math.ceil(Math.max(c.snap, swap ? pv.snap + 25 : c.snap) + 1); t <= c.snap + 900; t++) { const z2 = at(t - 2), z = at(t - 1), a = at(t), b = at(t + 1); if (qOk(a) && a.q != null && a.q !== p.q) break; if (qOk(a) && qOk(z) && qOk(z2) && qOk(b) && z2.s === a.s && z.s === a.s && b.s < a.s && a.s >= cs - 1 && a.s <= cs + 7) { const w = this.wideSnap(t - 1.5, t + 1.5); to = w != null ? w : t + 0.3; break; } }
+      if (to == null) to = this.clockStart(p, Math.max(c.snap, swap ? pv.snap + 25 : c.snap) + 1, c.snap + 900);
       if (to == null || list.some(o => o !== c && Math.abs(o.snap - to) < 6)) continue;
       const d = to - c.snap; moved[c.id] = { ...c, snap: to, start: c.start + d, end: c.end + d };
     }
