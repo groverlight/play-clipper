@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play Clipper</title>
-<meta name="pc-build" content="1795711262">
+<meta name="pc-build" content="1795711350">
 <script src="./vendor/react.production.min.js"></script>
 <script src="./vendor/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
@@ -322,7 +322,7 @@ class Component extends DCLogic {
     this.loadSchedule();
     // restore the view after a self-update
     try { const v = JSON.parse(sessionStorage.getItem('pc-view') || 'null'); sessionStorage.removeItem('pc-view'); if (v) { if (v.key) this._jumpKey = v.key; this.setState({ unit: v.unit || 'off', q: v.q || '', panel: v.panel || null, scope: v.scope || 'game' }); } } catch (e) {}
-    this.watchForUpdates();
+    // no self-updates: the user doesn't want the page reloading on its own
     window.addEventListener('resize', this.onResize);
     this.restoreLast();
   }
