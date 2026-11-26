@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play Clipper</title>
-<meta name="pc-build" content="1795711411">
+<meta name="pc-build" content="1795711740">
 <script src="./vendor/react.production.min.js"></script>
 <script src="./vendor/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
@@ -1808,7 +1808,28 @@ class Component extends DCLogic {
     // user, Clemson: the first placement is right and every scoreboard move made it worse → the scoreboard passes only fill plays the first placement couldn't find
     const out = raw.map(c => { const b = B.get(c.id); if (!b || b.est || c.est || Math.abs(b.snap - c.snap) < 2) return c; return { ...b, guarded: true }; });
     // never let a reverted clip land on another clip
-    return out.map((c, i) => c.guarded && out.some((o, j) => j !== i && !o.est && Math.abs(o.snap - c.snap) < 6) ? raw[i] : c);
+    const fin = out.map((c, i) => c.guarded && out.some((o, j) => j !== i && !o.est && Math.abs(o.snap - c.snap) < 6) ? raw[i] : c);
+    return this.afterStop(fin, P, at);
+  }
+  // Rule 23: after a play that stops the clock (punt, kick, turnover, incompletion, out of bounds, flag, score, timeout) the clock stays stopped
+  // until the next snap. If the scoreboard clock runs without a stop from the previous snap to this one, this clip is still inside the previous
+  // play → move it to where the clock next starts from ESPN's time (same quarter). Clemson offense play 19 (Q2 11:36) sat on Clemson's punt return.
+  afterStop(clips, P, at) {
+    const ord = {}; this.state.game.plays.forEach((p, i) => { ord[p.id] = i; });
+    const list = clips.filter(c => !c.est && P[c.id]).sort((a, b) => (ord[a.id] ?? 0) - (ord[b.id] ?? 0));
+    const stopper = /punt|kickoff|intercept|fumble|incomplete|out of bounds|PENALTY|TOUCHDOWN|field goal|timeout|kick attempt|spiked/i;
+    const moved = {};
+    for (let k = 1; k < list.length; k++) {
+      const c = list[k], p = P[c.id], pv = list[k - 1], pp = P[pv.id], cs = this.clockSec(p);
+      if (!pp || !stopper.test(pp.text || '') || cs == null || p.q > 4 || pp.q !== p.q || c.snap - pv.snap > 120) continue;
+      const qOk = (r) => r && (r.q == null || r.q === p.q);
+      let reads = 0, stop = false; for (let t = Math.ceil(pv.snap + 2); t <= c.snap - 1; t++) { const z2 = at(t - 2), z = at(t - 1), a = at(t); if (qOk(a)) reads++; if (qOk(a) && qOk(z) && qOk(z2) && z2.s === a.s && z.s === a.s) { stop = true; break; } if (!a) { stop = true; break; } }
+      if (stop || reads < 3) continue;
+      let to = null; for (let t = Math.ceil(c.snap + 1); t <= c.snap + 900; t++) { const z2 = at(t - 2), z = at(t - 1), a = at(t), b = at(t + 1); if (qOk(a) && a.q != null && a.q !== p.q) break; if (qOk(a) && qOk(z) && qOk(z2) && qOk(b) && z2.s === a.s && z.s === a.s && b.s < a.s && a.s >= cs - 1 && a.s <= cs + 7) { const w = this.wideSnap(t - 1.5, t + 1.5); to = w != null ? w : t + 0.3; break; } }
+      if (to == null || list.some(o => o !== c && Math.abs(o.snap - to) < 6)) continue;
+      const d = to - c.snap; moved[c.id] = { ...c, snap: to, start: c.start + d, end: c.end + d };
+    }
+    return clips.map(c => moved[c.id] || c);
   }
   savePng(c) {
     const v = this.hv; if (!v || !v.videoWidth) return;
