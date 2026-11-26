@@ -78,7 +78,13 @@ input::placeholder{color:#8b8984}
     </sc-if>
   </div>
 
-  <sc-if value="{{ isScanning }}" hint-placeholder-val="{{ false }}"><span class="num" style="flex:none;font-size:12px;line-height:17px;color:#a3a19c;white-space:nowrap" title="{{ scanTip }}">Scanning {{ scanPct }}</span></sc-if>
+  <sc-if value="{{ showProg }}" hint-placeholder-val="{{ false }}">
+    <div title="{{ scanTip }}" style="flex:none;width:208px;display:flex;flex-direction:column;gap:4px">
+      <span class="num" style="display:flex;justify-content:space-between;gap:8px;font-size:12px;line-height:17px;color:#a3a19c;white-space:nowrap"><span>{{ progLabel }}</span><span style="color:#eceae6;font-weight:700">{{ progPct }}</span></span>
+      <span style="height:4px;border-radius:2px;background:#3a3936;overflow:hidden"><span style="display:block;height:100%;width:{{ progW }};background:#e8a35a;transition:width .5s ease"></span></span>
+    </div>
+    <span style="position:absolute;left:0;bottom:-1px;height:2px;width:{{ progW }};background:#e8a35a;transition:width .5s ease"></span>
+  </sc-if>
   <div style="flex:none;width:32px;height:32px;border-radius:50%;background:#3a3a37"></div>
 
   <!-- schedule menu -->
@@ -156,7 +162,7 @@ input::placeholder{color:#8b8984}
           <sc-if value="{{ c.canSnap }}" hint-placeholder-val="{{ false }}"><button onClick="{{ c.snapPng }}" title="Save screenshot" aria-label="Save screenshot" style="position:absolute;top:8px;right:8px;z-index:6;width:32px;height:32px;border:none;border-radius:8px;background:rgba(20,20,19,.82);color:#eceae6;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"></path><path d="M7 10l5 5 5-5"></path><path d="M5 20h14"></path></svg></button></sc-if>
         </div>
         <div style="height:36px;display:flex;align-items:flex-start;gap:32px;visibility:{{ c.belowVis }}">
-          <span class="clamp2" style="flex:1 1 0;max-width:400px;font-size:13px;line-height:18px;color:#a3a19c">{{ c.desc }}</span>
+          <span class="clamp2" title="{{ c.descTip }}" style="flex:1 1 0;max-width:400px;font-size:13px;line-height:18px;color:#a3a19c">{{ c.desc }}</span>
           <span style="flex:0 1 auto;display:flex;gap:8px;overflow:hidden;min-width:0">
             <sc-for list="{{ c.tags }}" as="g" hint-placeholder-count="3"><button onClick="{{ g.pick }}" style="flex:none;height:27px;padding:0 8px;border-radius:4px;background:#121211;border:1px solid #2a2a28;font-size:12px;line-height:17px;color:#a3a19c;white-space:nowrap;cursor:pointer" style-hover="border-color:#77756f;color:#eceae6">#{{ g.label }}</button></sc-for>
           </span>
@@ -616,10 +622,10 @@ class Component extends DCLogic {
     this.reset();
     const src = URL.createObjectURL(file);
     this.fileKey = ['v2', file.name, file.size, file.lastModified].join('|'); this.file = file;
-    if (!restored) this.cachePut('lastVideo', { file, gameUrl: this.state.gameUrl });
-    this.libAdd({ key: this.fileKey, file, gameUrl: this.state.gameUrl, title: (this.state.game && this.state.game.title) || '' });
     const cached = fresh ? null : await this.cacheGet(this.fileKey);
-    this.setState({ phase: 'analyzing', src, fileName: file.name, duration: 0, curT: 0, clips: [], rawClips: [], openId: null, hoverId: null, error: '', drag: false }, () => {
+    const gu = this.state.gameUrl, gt = (this.state.game && this.state.game.title) || '';
+    setTimeout(() => { if (!restored) this.cachePut('lastVideo', { file, gameUrl: gu }); this.libAdd({ key: this.fileKey, file, gameUrl: gu, title: gt }); }, 1500);
+    this.setState({ importing: null, phase: 'analyzing', src, fileName: file.name, duration: 0, curT: 0, clips: [], rawClips: [], openId: null, hoverId: null, error: '', drag: false }, () => {
       const covOk = (c) => { let s = 0, r = null; for (const p of c.samples) { if (r && p.t - r[1] < 1.5) r[1] = p.t; else { if (r) s += r[1] - r[0]; r = [p.t, p.t]; } } if (r) s += r[1] - r[0]; return c.duration && s >= c.duration * 0.97; };
       if (cached && cached.samples && cached.samples.length && cached.done !== false && covOk(cached)) this.useCached(cached);
       else { if (cached && cached.samples) this.samples = cached.samples; this.startAnalysis(); }
@@ -2179,7 +2185,7 @@ class Component extends DCLogic {
   }
   async uploadFor(gid, file) {
     if (!file) return;
-    this.setState({ schedOpen: false });
+    this.setState({ schedOpen: false, importing: { gid, name: file.name } });
     this.reset();
     await new Promise(r => this.setState({ gameUrl: this.espnUrl(gid), game: null, gameError: '', phase: 'empty', clips: [], rawClips: [], cur: 0 }, r));
     await this.loadGame();
@@ -2310,6 +2316,35 @@ class Component extends DCLogic {
   setSearch(q) { this.setState({ q, panel: 'search', qFocus: false }, () => this.recenter()); }
   recenter() { setTimeout(() => { this._rowV = 0; this.scrollRow(this.state.cur || 0); }, 60); }
 
+  // ---- placeholder "AI" notes: written from ESPN stats until a real model is connected ----
+  noteFor(c, F, t, nx) {
+    const s = c.sum || {}; if (!s.result) return '';
+    const m = /^(\d)\w*\s*&\s*(\d+|Goal)/i.exec(c.down || ''), dn = m ? +m[1] : 0, goal = m && /goal/i.test(m[2]);
+    const spotN = +((/(\d+)\s*$/.exec(c.spot || '') || [])[1] || 0), dist = m ? (goal ? spotN || 10 : +m[2]) : 0;
+    const y = F.y || 0, ord = ['', '1st', '2nd', '3rd', '4th'][dn] || '', [a, b] = String(s.actors || '').split(' → ').map(x => (x || '').replace(/^picked by /, '').trim());
+    const who = F.kind === 'pass' ? (b || a) : a, last = (nm) => String(nm || '').replace(/\s+(Jr\.|Sr\.|II|III|IV)$/, '').split(/[\s.]+/).pop() || nm;
+    const yd = (n) => `${n} yard${n === 1 ? '' : 's'}`, next = dn && dn < 4 ? `${['', '1st', '2nd', '3rd', '4th'][dn + 1]} & ${Math.max(1, dist - y)}` : '';
+    const W = this.wpTable(), w1 = W.at[c.key], w0 = W.prev[c.key], dw = w1 != null && w0 != null ? Math.round((w1 - w0) * 100) : 0;
+    const wTxt = Math.abs(dw) >= 4 ? ` Win chance ${dw > 0 ? '+' : '−'}${Math.abs(dw)}%.` : '';
+    const red = F.redzone ? ' Red-zone snap.' : '';
+    let lead = '';
+    if (F.td) lead = F.kind === 'pass' ? `${last(who)} finds the end zone from ${yd(y)} out.` : F.kind === 'rush' ? `${last(who)} punches it in from ${yd(y)}.` : 'Touchdown.';
+    else if (s.result === 'Interception') lead = `Picked off${ord ? ' on ' + ord + ' down' : ''} — possession flips at the ${(nx && nx.spot) || 'spot'}.`;
+    else if (/fumble/i.test(c.text || '') && F.words.includes('turnover')) lead = 'Ball comes loose and the defense takes it away.';
+    else if (F.kind === 'penalty') { const off = /−|^-/.test(s.penY || '') || y < 0; lead = `Flag on ${s.penW || 'the play'}: ${String(s.penF || 'penalty').toLowerCase()}${s.penY ? ', ' + s.penY.replace(/^[+−-]/, '') : ''}.` + (off ? ' Pushes the offense back.' : ' Free yards for the offense.'); }
+    else if (F.kind === 'kick') lead = /punt/i.test(s.result) ? `Punt from the ${c.spot || 'spot'}${s.yds ? ', ' + s.yds.replace(/ yds/, ' yards') : ''}.` : /field goal good/i.test(s.result) ? `Three points from ${s.yds ? s.yds.replace(/ yds/, ' yards') : 'range'}.` : /field goal/i.test(s.result) ? `Field goal try comes up empty.` : /extra point good/i.test(s.result) ? 'Extra point is good.' : /extra point/i.test(s.result) ? 'Extra point misses.' : /kickoff/i.test(s.result) ? `Kickoff${s.yds ? ', ' + s.yds.replace(/ yds/, ' yards') : ''}.` : '';
+    else if (s.result === 'Sack') lead = `Pocket collapses — ${last(a)} goes down for a ${-y}-yard loss${next ? ', setting up ' + next : ''}.`;
+    else if (s.result === 'Incomplete') lead = dn >= 3 ? `Incomplete on ${ord} & ${goal ? 'goal' : dist}${b ? ' to ' + last(b) : ''} — drive stalls here.` : `Throw to ${last(b) || 'the receiver'} falls incomplete${next ? '; ' + next + ' next' : ''}.`;
+    else if (F.kind === 'rush' || F.kind === 'pass') {
+      const how = F.kind === 'rush' ? 'run' : 'catch', need = dn === 1 ? 0.4 : dn === 2 ? 0.6 : 1, ok = dist && y >= dist * need;
+      if (F.expl) lead = F.kind === 'rush' ? `${last(who)} breaks loose for ${yd(y)}${F.fd ? ' and a first down' : ''}.` : `${last(who)} hauls in a ${y}-yard gain${F.fd ? ' for a first down' : ''}.`;
+      else if (F.fd) lead = `${last(who)} moves the chains: ${yd(y)} on ${ord} & ${goal ? 'goal' : dist}.`;
+      else if (y <= 0) lead = `${last(who)} is stopped ${y < 0 ? 'for a loss of ' + yd(-y) : 'for no gain'}${next ? ' — ' + next + ' ahead' : ''}.`;
+      else if (ok) lead = `Efficient ${how}: ${yd(y)} on ${ord} & ${dist} keeps the offense on schedule.`;
+      else lead = `${last(who)} gets ${yd(y)} on ${ord} & ${goal ? 'goal' : dist}${next ? ', leaving ' + next : ''}.`;
+    }
+    return (lead + red + wTxt).trim();
+  }
   renderVals() {
     const b = this.renderValsBase(), st = this.state, G = st.game;
     const chain = b.chain || [], n = chain.length, ci = Math.min(st.cur || 0, Math.max(0, n - 1)), cc = chain[ci];
@@ -2336,7 +2371,7 @@ class Component extends DCLogic {
     const cards = chain.map((c, i) => {
       const F = facts[i], isCur = i === ci;
       return { ...c, isCur, hasDown: !!c.down, spotTxt: c.spot ? 'at ' + c.spot : '', meta: metaOf(c), title: this.playTitle(c.sum),
-        desc: c.text || '', tags: this.cardTags(c, F).slice(0, 6).map(l => ({ label: l, pick: (e) => { e.stopPropagation(); this.setSearch(l); } })),
+        desc: this.noteFor(c, F, ticks[i], chain[i + 1]) || c.text || '', descTip: c.text || '', tags: this.cardTags(c, F).slice(0, 6).map(l => ({ label: l, pick: (e) => { e.stopPropagation(); this.setSearch(l); } })),
         op: isCur ? '1' : '0.5', belowVis: isCur ? 'visible' : 'hidden', padR: isCur ? (hasNav ? '336px' : '152px') : '0px' };
     });
     // ---- timeline ----
@@ -2395,7 +2430,8 @@ class Component extends DCLogic {
       // header
       hasScore: T.length === 2, noScore: T.length !== 2, away: side(T[0], T[1]), home: side(T[1], T[0]), gStatus, gDate: (G && G.dateShort) || '',
       gameMsg: st.gameLoading ? 'Loading game…' : st.gameError || 'Pick a game from the schedule', gameMsgColor: st.gameError ? '#f08a6a' : '#8b8984',
-      isScanning: analyzing, scanPct: pctTxt, scanTip: b.statusSub || '',
+      showProg: analyzing || !!st.importing, progLabel: st.importing ? 'Opening video…' : 'Finding plays' + (this.etaMin && this.rateS ? ` · ~${this.etaMin} min left` : ''), progPct: st.importing ? '' : pctTxt, progW: st.importing ? '4%' : pctTxt,
+      scanTip: (b.statusSub || 'Reading the video') + '. Keep this tab open.',
       toggleSched: () => { const o = !st.schedOpen; this.setState({ schedOpen: o }); if (o && !st.sched) this.loadSchedule(); },
       schedOpen: !!st.schedOpen, schedBtnBg: st.schedOpen ? '#232321' : 'transparent', schedBtnBorder: st.schedOpen ? '#77756f' : '#3a3a37',
       sched: st.sched || { name: 'Miami Hurricanes', sub: '', logo: 'https://a.espncdn.com/i/teamlogos/ncaa/500/' + this.TEAM + '.png' }, season: String(st.season || 2026), seasons: ['2026', '2025', '2024'], onSeason: (e) => this.loadSchedule(+e.target.value),
@@ -2439,7 +2475,7 @@ class Component extends DCLogic {
     const teamById = {}; ((G && G.teams) || []).forEach(t => { teamById[t.id] = t; });
     const tot = this.scanTotal || st.duration, pct = tot ? Math.min(100, Math.round(st.curT / tot * 100)) : 0;
     const analyzing = st.phase === 'analyzing', hasVideo = !!st.src;
-    const noClipTxt = !hasVideo ? 'No video yet' : analyzing ? 'Searching…' : 'Not found in video';
+    const noClipTxt = !hasVideo ? (st.importing ? 'Opening video…' : 'No video yet') : analyzing ? `Finding this play… ${pct}%` : 'Not found in video';
     const groupsAll = this.board();
     const groupsRaw = st.qtr === 'all' ? groupsAll : groupsAll.filter(g => g.q === st.qtr);
     let shown = 0, withClip = 0;
