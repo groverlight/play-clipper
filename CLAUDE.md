@@ -27,7 +27,8 @@ Enforced in snap check (fixDone version bump re-runs it) + audit() self-check af
 Audit flags: not found on video · overlaps next play · clock frozen · wrong quarter on scoreboard · scoreboard clock >20s from ESPN.
 
 # Deploying
-- Run ./bump.sh before every push (build number in index.html + version.json). Self-update is OFF (watchForUpdates not called): the user doesn't want the page reloading on its own. New versions load on the user's next reload.
+- The app is app.html; index.html is a tiny loader that reads version.json (no cache) and opens app.html?v=<build>, because GitHub Pages serves cached HTML for up to 10 min (the user kept getting old builds after Cmd+Shift+R).
+- Run ./bump.sh before every push (build number in app.html + version.json). Self-update is OFF (watchForUpdates not called): the user doesn't want the page reloading on its own. New versions load on the user's next reload.
 
 # Play Clipper — backlog
 - Penalty detail: ESPN only gives "Personal Foul (player) yds". Find an easy way to get the specific call (roughing, late hit, targeting…). Ideas: transcribe ref announcement audio ~20–40s after flagged plays; OCR the broadcast flag banner; other data source.
