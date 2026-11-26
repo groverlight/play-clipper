@@ -1777,7 +1777,6 @@ class Component extends DCLogic {
   pumpThumbs() {
     if ((!this.tv || !this.tv.parentNode) && this.state.src && !this.unmounting) { this.thumbBusy = null; this.setupThumbs(); return; }
     const tv = this.tv;
-    if (this.thumbHold) return;
     if (this.thumbBusy && performance.now() - this.thumbAt > 2000) { const b = this.thumbBusy; this.thumbs[b.id] = this.thumbs[b.id] || { t: b.t, url: '', at: performance.now(), v: 3 }; this.thumbBusy = null; }
     if (!tv || this.thumbBusy || tv.readyState < 1) return;
     const all = this.state.clips.concat(this.state.rawClips || []), bad = (c) => { const x = this.thumbs[c.id]; return !x || x.v !== 3 || x.s == null || Math.abs(x.s - c.start) > 0.3 || (!x.url && performance.now() - x.at > 15000); };
@@ -1799,7 +1798,7 @@ class Component extends DCLogic {
       if (Math.abs(best.t - want) < 0.6) this.thumbs[c.id] = { t: c.snap, s: c.start, url: best.cv.toDataURL('image/jpeg', 0.72), v: 3 };
     });
   }
-  thumbUrl(c) { if (this.thumbHold) return ''; const x = c && this.thumbs[c.id]; return x && x.url && x.v === 3 && x.s != null && Math.abs(x.s - c.start) <= 0.3 ? x.url : ''; }
+  thumbUrl(c) { const x = c && this.thumbs[c.id]; return x && x.url && x.v === 3 && x.s != null && Math.abs(x.s - c.start) <= 0.3 ? x.url : ''; }
   onThumbSeeked() {
     const id = this.thumbBusy, tv = this.tv;
     if (!id || !tv) return;
@@ -2421,7 +2420,7 @@ class Component extends DCLogic {
           else if (y < 0) dn(Math.min(-y, 10) / 10 * 12, col);
           else f = { ...f, fTop: '26px', fH: '6px', fRad: '2px', fBg: TRACK, fEdge: 'inset 0 0 0 1.5px ' + col };
           return { i: t.i, down: t.down, enter: t.enter, tip: t.tip, inDrive: String(t.inDrive).padStart(2, '0'), num: String((t._c && t._c.num) || '').padStart(2, '0'),
-            bg: on ? '#3a3a37' : 'transparent', ring: on ? 'inset 0 0 0 1.5px #eceae6, 0 0 0 4px rgba(236,234,230,.12)' : 'none', z: on ? '1' : '0', fw: on ? '700' : '400', fg: on ? '#ffffff' : '#8b8984', op: searching && !matchSet.has(t.i) ? '0.25' : '1', isTd: !!t._td, isFd: !t._td && !!t._fd, mk: d.here ? '#eceae6' : '#a3a19c', track, ...f };
+            bg: on ? '#eceae6' : 'transparent', ring: 'none', z: on ? '1' : '0', fw: on ? '700' : '400', fg: on ? '#161615' : '#8b8984', op: searching && !matchSet.has(t.i) ? '0.25' : '1', isTd: !!t._td, isFd: !t._td && !!t._fd, mk: on ? '#161615' : d.here ? '#eceae6' : '#a3a19c', track: on && track === TRACK ? '#c9c7c2' : track, ...f };
         }) };
     });
     // ---- header ----
