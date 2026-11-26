@@ -85,6 +85,7 @@ input::placeholder{color:#8b8984}
     </div>
     <span style="position:absolute;left:0;bottom:-1px;height:2px;width:{{ progW }};background:#e8a35a;transition:width .5s ease"></span>
   </sc-if>
+  <sc-if value="{{ showReview }}" hint-placeholder-val="{{ false }}"><button onClick="{{ nextFlag }}" title="Clips the self-check couldn't fix · jump to the next one" style="flex:none;height:32px;display:flex;align-items:center;gap:8px;padding:0 16px;border:none;border-radius:16px;background:#1c1c1a;color:#eceae6;font-size:13px;line-height:18px;font-weight:700;cursor:pointer;white-space:nowrap" style-hover="background:#2a2a28"><span style="width:8px;height:8px;border-radius:50%;background:#e8503a"></span>{{ reviewTxt }}</button></sc-if>
   <div style="flex:none;width:32px;height:32px;border-radius:50%;background:#3a3a37"></div>
 
   <!-- schedule menu -->
@@ -260,6 +261,7 @@ input::placeholder{color:#8b8984}
         <div style="display:flex">
           <sc-for list="{{ d.plays }}" as="t" hint-placeholder-count="6">
           <button data-i="{{ t.i }}" onPointerDown="{{ t.down }}" onPointerEnter="{{ t.enter }}" title="{{ t.tip }}" style="width:20px;height:103px;flex:none;display:flex;flex-direction:column;align-items:center;gap:4px;padding:4px 0;border:none;border-radius:4px;background:{{ t.bg }};box-shadow:{{ t.ring }};opacity:{{ t.op }};cursor:pointer;font:inherit;position:relative;z-index:{{ t.z }}" style-hover="background:#2a2a28">
+            <sc-if value="{{ t.flag }}" hint-placeholder-val="{{ false }}"><span title="{{ t.flagWhy }}" style="position:absolute;top:-2px;right:-2px;width:8px;height:8px;border-radius:50%;background:#e8503a;border:2px solid #161615"></span></sc-if>
             <span class="num" style="font-size:10px;line-height:14px;color:{{ t.fg }};font-weight:{{ t.fw }}">{{ t.inDrive }}</span>
             <span style="width:10px;height:10px;display:flex;align-items:center;justify-content:center">
               <sc-if value="{{ t.isFd }}" hint-placeholder-val="{{ false }}"><svg width="8" height="7" viewBox="0 0 8 7"><path d="M4 0l4 7H0z" fill="{{ t.mk }}"></path></svg></sc-if>
@@ -2419,7 +2421,7 @@ class Component extends DCLogic {
           else if (y > 0) up(Math.min(y, 10) / 10 * 32, col, t._type === 'pass' ? y >= 16 : y >= 12);
           else if (y < 0) dn(Math.min(-y, 10) / 10 * 12, col);
           else f = { ...f, fTop: '26px', fH: '6px', fRad: '2px', fBg: TRACK, fEdge: 'inset 0 0 0 1.5px ' + col };
-          return { i: t.i, down: t.down, enter: t.enter, tip: t.tip, inDrive: String(t.inDrive).padStart(2, '0'), num: String((t._c && t._c.num) || '').padStart(2, '0'),
+          return { i: t.i, down: t.down, enter: t.enter, tip: t.tip, flag: t.flagD === 'block', flagWhy: t.flagWhy || '', inDrive: String(t.inDrive).padStart(2, '0'), num: String((t._c && t._c.num) || '').padStart(2, '0'),
             bg: on ? '#eceae6' : 'transparent', ring: 'none', z: on ? '1' : '0', fw: on ? '700' : '400', fg: on ? '#161615' : '#8b8984', op: searching && !matchSet.has(t.i) ? '0.25' : '1', isTd: !!t._td, isFd: !t._td && !!t._fd, mk: on ? '#161615' : d.here ? '#eceae6' : '#a3a19c', track: on && track === TRACK ? '#c9c7c2' : track, ...f };
         }) };
     });
@@ -2457,7 +2459,9 @@ class Component extends DCLogic {
       // header
       hasScore: T.length === 2, noScore: T.length !== 2, away: side(T[0], T[1]), home: side(T[1], T[0]), gStatus, gDate: (G && G.dateShort) || '',
       gameMsg: st.gameLoading ? 'Loading game…' : st.gameError || 'Pick a game from the schedule', gameMsgColor: st.gameError ? '#f08a6a' : '#8b8984',
-      showProg: analyzing || !!st.importing, progLabel: st.importing ? 'Opening video…' : 'Finding plays' + (this.etaMin && this.rateS ? ` · ~${this.etaMin} min left` : ''), progPct: st.importing ? '' : pctTxt, progW: st.importing ? '4%' : pctTxt,
+      ...(() => { const bm = !analyzing && !st.importing && st.bugMsg ? String(st.bugMsg) : '', fr = /(\d+)\s*\/\s*(\d+)/.exec(bm), bp = fr ? Math.round(+fr[1] / +fr[2] * 100) + '%' : /(\d+)%/.test(bm) ? /(\d+)%/.exec(bm)[1] + '%' : '';
+        return { showProg: analyzing || !!st.importing || !!bm, progLabel: st.importing ? 'Opening video…' : bm ? bm.replace(/\s*·\s*\d+\s*\/\s*\d+\s*$/, '').replace(/\s*·\s*\d+%.*$/, '') : 'Finding plays' + (this.etaMin && this.rateS ? ` · ~${this.etaMin} min left` : ''), progPct: st.importing ? '' : bm ? bp : pctTxt, progW: st.importing ? '4%' : bm ? (bp || '50%') : pctTxt,
+          showReview: !analyzing && !st.importing && !bm && !!st.auditN, reviewTxt: `${st.auditN} to review`, nextFlag: b.nextFlag }; })(),
       scanTip: (b.statusSub || 'Reading the video') + '. Keep this tab open.',
       toggleSched: () => { const o = !st.schedOpen; this.setState({ schedOpen: o }); if (o && !st.sched) this.loadSchedule(); },
       schedOpen: !!st.schedOpen, schedBtnBg: st.schedOpen ? '#232321' : 'transparent', schedBtnBorder: st.schedOpen ? '#77756f' : '#3a3a37',
