@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play Clipper</title>
-<meta name="pc-build" content="1795711350">
+<meta name="pc-build" content="1795711411">
 <script src="./vendor/react.production.min.js"></script>
 <script src="./vendor/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
@@ -84,8 +84,8 @@ input::placeholder{color:#8b8984}
       <span class="num" style="display:flex;justify-content:space-between;gap:8px;font-size:12px;line-height:17px;color:#a3a19c;white-space:nowrap"><span>{{ progLabel }}</span><span style="color:#eceae6;font-weight:700">{{ progPct }}</span></span>
       <span style="height:4px;border-radius:2px;background:#3a3936;overflow:hidden"><span style="display:block;height:100%;width:{{ progW }};background:#e8a35a;transition:width .5s ease"></span></span>
     </div>
-    <span style="position:absolute;left:0;bottom:-1px;height:2px;width:{{ progW }};background:#e8a35a;transition:width .5s ease"></span>
   </sc-if>
+  <sc-if value="{{ readyMsg }}" hint-placeholder-val="{{ false }}"><span style="flex:none;height:32px;display:flex;align-items:center;padding:0 16px;border-radius:16px;background:#1c1c1a;font-size:13px;line-height:18px;font-weight:700;color:#eceae6;white-space:nowrap">All clips ready</span></sc-if>
   <sc-if value="{{ showReview }}" hint-placeholder-val="{{ false }}"><button onClick="{{ nextFlag }}" title="Clips the self-check couldn't fix · jump to the next one" style="flex:none;height:32px;display:flex;align-items:center;gap:8px;padding:0 16px;border:none;border-radius:16px;background:#1c1c1a;color:#eceae6;font-size:13px;line-height:18px;font-weight:700;cursor:pointer;white-space:nowrap" style-hover="background:#2a2a28"><span style="width:8px;height:8px;border-radius:50%;background:#e8503a"></span>{{ reviewTxt }}</button></sc-if>
   <div style="flex:none;width:32px;height:32px;border-radius:50%;background:#3a3a37"></div>
 
@@ -1412,7 +1412,7 @@ class Component extends DCLogic {
       await this.cachePut(ck, { v: 12, bug: this.bug, snap: this.bugSnap, complete: true, flag: this.flagSnap, flagM: this.flagM, flagDone: true, fix: this.snapFix, fixDone: 17, kick: this.kickSnap, tabM: this.tabM, kickDone: 2, otDone: 1, sb: this.sbSnap, sbLong: this.sbLong, sbBad: this.sbBad, sbDone: 1 });
       this.redetect(); this.setState({ bugMsg: '' });
     } catch (e) { console.warn('scoreboard', e); this._bugErr = 'Scan stopped: ' + e.message; }
-    finally { this.bugBusy = false; this.setState({ checking: false }); if (run === this.bugRun) this.releaseThumbs(); if (run === this.bugRun) { const err = this._bugErr; this._bugErr = null; this.setState({ bugMsg: err || '' }); if (!err && this.state.game && this.state.clips.length) this.audit().catch(e => { console.warn('audit', e); this.setState({ bugMsg: 'Self-check failed: ' + e.message }); }); } }
+    finally { this.bugBusy = false; if (this.state.checking && run === this.bugRun) { this.setState({ readyMsg: true }); clearTimeout(this._readyTO); this._readyTO = setTimeout(() => this.setState({ readyMsg: false }), 5000); } this.setState({ checking: false }); if (run === this.bugRun) this.releaseThumbs(); if (run === this.bugRun) { const err = this._bugErr; this._bugErr = null; this.setState({ bugMsg: err || '' }); if (!err && this.state.game && this.state.clips.length) this.audit().catch(e => { console.warn('audit', e); this.setState({ bugMsg: 'Self-check failed: ' + e.message }); }); } }
   }
   // last camera cut in the lead-in window → start just after it (keeps replays/graphics out of the pre-roll)
   cutBefore(t, lead) { const S = this.samples || []; let lo = 0, hi = S.length; while (lo < hi) { const m = (lo + hi) >> 1; if (S[m].t < t - lead) lo = m + 1; else hi = m; } let c = -1; const gAvg = (a, b) => { const w = S.filter(s => s.t >= a && s.t <= b); return w.length ? w.reduce((x, s) => x + s.g, 0) / w.length : null; };
@@ -2512,8 +2512,8 @@ class Component extends DCLogic {
       // header
       hasScore: T.length === 2, noScore: T.length !== 2, away: side(T[0], T[1]), home: side(T[1], T[0]), gStatus, gDate: (G && G.dateShort) || '',
       gameMsg: st.gameLoading ? 'Loading game…' : st.gameError || 'Pick a game from the schedule', gameMsgColor: st.gameError ? '#f08a6a' : '#8b8984',
-      ...(() => { const bm = !analyzing && !st.importing && (st.bugMsg || st.checking) ? String(st.bugMsg || 'Checking clips against the scoreboard') : '', fr = /(\d+)\s*\/\s*(\d+)/.exec(bm), bp = fr ? Math.round(+fr[1] / +fr[2] * 100) + '%' : /(\d+)%/.test(bm) ? /(\d+)%/.exec(bm)[1] + '%' : '';
-        return { showProg: analyzing || !!st.importing || !!bm, progLabel: st.importing ? 'Opening video…' : bm ? bm.replace(/\s*·\s*\d+\s*\/\s*\d+\s*$/, '').replace(/\s*·\s*\d+%.*$/, '') : 'Finding plays' + (this.etaMin && this.rateS ? ` · ~${this.etaMin} min left` : ''), progPct: st.importing ? '' : bm ? bp : pctTxt, progW: st.importing ? '4%' : bm ? (bp || '50%') : pctTxt,
+      ...(() => { const bm = '', fr = /(\d+)\s*\/\s*(\d+)/.exec(bm), bp = fr ? Math.round(+fr[1] / +fr[2] * 100) + '%' : /(\d+)%/.test(bm) ? /(\d+)%/.exec(bm)[1] + '%' : '';
+        return { readyMsg: !!st.readyMsg && !analyzing, showProg: analyzing || !!st.importing || !!bm, progLabel: st.importing ? 'Opening video…' : bm ? bm.replace(/\s*·\s*\d+\s*\/\s*\d+\s*$/, '').replace(/\s*·\s*\d+%.*$/, '') : 'Finding plays' + (this.etaMin && this.rateS ? ` · ~${this.etaMin} min left` : ''), progPct: st.importing ? '' : bm ? bp : pctTxt, progW: st.importing ? '4%' : bm ? (bp || '50%') : pctTxt,
           showReview: false, reviewTxt: `${st.auditN} to review`, nextFlag: b.nextFlag }; })(),
       scanTip: (b.statusSub || 'Reading the video') + '. Keep this tab open.',
       toggleSched: () => { const o = !st.schedOpen; this.setState({ schedOpen: o }); if (o && !st.sched) this.loadSchedule(); },
