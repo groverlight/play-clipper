@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play Clipper</title>
-<meta name="pc-build" content="1795712116">
+<meta name="pc-build" content="1795712236">
 <script src="./vendor/react.production.min.js"></script>
 <script src="./vendor/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
@@ -1798,16 +1798,30 @@ class Component extends DCLogic {
     let base; this.bugOn = false; try { base = this.detectGame(); } finally { this.bugOn = true; }
     const B = new Map(base.map(c => [c.id, c])), P = {}; this.state.game.plays.forEach(p => { P[p.id] = p; });
     const at = (t) => { const r = this.bug[this.bkey(Math.round(t))]; return r && r.s != null ? r : null; };
+    // Evidence for a snap at t = the scoreboard clock right before it sits where this play's snap clock should be.
+    //   normal play: ESPN's clock is the snap clock → broadcast reads ESPN −1…+7
+    //   TD (ESPN = end clock): previous play stopped the clock → reads that play's clock −2…+1; else at least 3s above the end clock
+    // No scoreboard anywhere in ±3s → a graphic/break (−1). Both placements are scored; the better one wins, ties keep the scoreboard's.
+    // Clemson: the first placement was right in Q1 (02, 03) and ~4 min late through Q2 (18, 19); the scoreboard's was the reverse.
+    const plays = this.state.game.plays, idx = {}; plays.forEach((p, i) => { idx[p.id] = i; });
+    const prevStop = (p) => { for (let j = idx[p.id] - 1; j >= 0; j--) { const x = plays[j]; if (x.pat || /kickoff|timeout/i.test((x.type || '') + ' ' + (x.text || ''))) continue; return x.q === p.q && !x.clkEnd && /incomplete|NO PLAY|out of bounds|PENALTY|spiked|punt|field goal/i.test(x.text || '') ? this.clockSec(x) : null; } return null; };
     const ev = (p, t) => {
-      const qOk = (r) => r && (r.q == null || r.q === p.q), z = [at(t - 3), at(t - 2), at(t - 1)], y = [at(t + 1), at(t + 2)];
-      if ([...z, at(t), ...y].every(r => !r)) return -1;
-      const a = z[2] || z[1], b = y[1] || y[0], cs = this.clockSec(p); let e = 0;
-      if (qOk(z[0]) && qOk(z[2]) && z[0].s === z[2].s && qOk(a) && qOk(b) && b.s < a.s) e += 2;
-      if (cs != null && qOk(a)) { const sd = a.s - cs; if (p.clkEnd) { if (sd < 2) e -= 2; } else if (sd >= -1 && sd <= 7) e += 1; else if (sd < -3 || sd > 10) e -= 1; }
-      return e;
+      const qOk = (r) => r && (r.q == null || r.q === p.q);
+      if ([-3, -2, -1, 0, 1, 2, 3].every(d => !at(t + d))) return -1;
+      const r = at(t - 0.5) || at(t - 1) || at(t - 1.5), cs = this.clockSec(p); if (!r || cs == null) return 0; if (!qOk(r)) return -1;
+      let lo = cs - 1, hi = cs + 7; if (p.clkEnd) { const pc = prevStop(p); if (pc != null) { lo = pc - 2; hi = pc + 1; } else { lo = cs + 3; hi = cs + 20; } }
+      return r.s >= lo && r.s <= hi ? 1 : -1;
     };
-    // user, Clemson: the first placement is right and every scoreboard move made it worse → the scoreboard passes only fill plays the first placement couldn't find
-    const out = raw.map(c => { const b = B.get(c.id); if (!b || b.est || c.est || Math.abs(b.snap - c.snap) < 2) return c; return { ...b, guarded: true }; });
+    const out = raw.map(c => { const b = B.get(c.id), p = P[c.id]; if (!b || !p || b.est) return c; if (c.est) return { ...b, guarded: true }; if (Math.abs(b.snap - c.snap) < 2) return c; return ev(p, b.snap) > ev(p, c.snap) ? { ...b, guarded: true } : c; });
+    // both placements unsupported (graphic, break, wrong spot) → look ±5 min for where the clock starts from this play's snap clock (Clemson offense 03 sat on a stats graphic in one placement and on play 04 in the other)
+    for (let i = 0; i < out.length; i++) {
+      const c = out[i], p = P[c.id]; if (!p || c.est || p.q > 4 || ev(p, c.snap) >= 0) continue;
+      const cs = this.clockSec(p); if (cs == null) continue; const qOk = (r) => r && (r.q == null || r.q === p.q);
+      let lo = cs - 1, hi = cs + 7; if (p.clkEnd) { const pc = prevStop(p); if (pc == null) continue; lo = pc - 2; hi = pc + 1; }
+      let best = null;
+      for (let t = Math.max(2, Math.round(c.snap - 300)); t <= c.snap + 300; t++) { const z = at(t - 1), a = at(t), b = at(t + 1); if (!(qOk(a) && qOk(z) && b && z.s === a.s && b.s < a.s && a.s >= lo && a.s <= hi)) continue; const w = this.wideSnap(t - 1.5, t + 1.5), cand = w != null ? w : t + 0.3; if (out.some((o, j) => j !== i && !o.est && Math.abs(o.snap - cand) < 6)) continue; if (best == null || Math.abs(cand - c.snap) < Math.abs(best - c.snap)) best = cand; }
+      if (best != null) { const d = best - c.snap; out[i] = { ...c, snap: best, start: c.start + d, end: c.end + d, rescued: true }; }
+    }
     // never let a reverted clip land on another clip
     const fin = out.map((c, i) => c.guarded && out.some((o, j) => j !== i && !o.est && Math.abs(o.snap - c.snap) < 6) ? raw[i] : c);
     return this.afterStop(fin, P, at);
@@ -2430,7 +2444,7 @@ class Component extends DCLogic {
     const G = this.state.game, clips = new Map((this.state.clips || []).map(c => [c.id, c])), F = this.auditFlags || {}, B = this.bug || {};
     const bg = (t) => { const r = B[this.bkey(t)]; return r ? (r.q || '?') + 'Q ' + Math.floor(r.s / 60) + ':' + String(r.s % 60).padStart(2, '0') : '-'; };
     const lines = ['build ' + this.build() + ' file ' + (this.fileKey || '') + ' dur ' + Math.round(this.state.duration || 0) + ' phase ' + this.state.phase + ' bugOn ' + !!this.bugOn + ' unit ' + this.state.unit];
-    ((G && G.plays) || []).forEach((p, i) => { const c = clips.get(p.id); lines.push([i, p.id, 'Q' + p.q + ' ' + p.clock, (p.down || '') + (p.spot ? ' @' + p.spot : ''), p.st ? 'ST' : (p.off === this.TEAM ? 'OFF' : 'DEF'), String(p.text || '').slice(0, 60), c ? `st ${c.start.toFixed(1)} sn ${c.snap.toFixed(1)} en ${c.end.toFixed(1)}${c.est ? ' EST' : ''}${c.guarded ? ' BASE' : ''} bug ${bg(c.snap - 0.5)} / ${bg(c.snap + 2)}` : 'NO CLIP', (F[p.id] || []).join(',')].join(' | ')); });
+    ((G && G.plays) || []).forEach((p, i) => { const c = clips.get(p.id); lines.push([i, p.id, 'Q' + p.q + ' ' + p.clock, (p.down || '') + (p.spot ? ' @' + p.spot : ''), p.st ? 'ST' : (p.off === this.TEAM ? 'OFF' : 'DEF'), String(p.text || '').slice(0, 60), c ? `st ${c.start.toFixed(1)} sn ${c.snap.toFixed(1)} en ${c.end.toFixed(1)}${c.est ? ' EST' : ''}${c.guarded ? ' BASE' : ''}${c.rescued ? ' RESCUED' : ''} bug ${bg(c.snap - 0.5)} / ${bg(c.snap + 2)}` : 'NO CLIP', (F[p.id] || []).join(',')].join(' | ')); });
     return lines.join('\n');
   }
   // ---- placeholder "AI" notes: written from ESPN stats until a real model is connected ----
