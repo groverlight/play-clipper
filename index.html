@@ -10,234 +10,270 @@
 </head>
 <body>
 <x-dc>
-<helmet><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet"><style>body{margin:0;background:#161615;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;color:#eceae6;letter-spacing:0.02em}button,input{letter-spacing:inherit}a{color:#e8a35a}a:hover{color:#f2c08a}::-webkit-scrollbar{display:none}*{box-sizing:border-box}input::placeholder{color:#6a6863}</style></helmet>
+<helmet><style>
+body{margin:0;background:#161615;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;color:#eceae6;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+button,input,select{font:inherit;color:inherit;letter-spacing:inherit}
+::-webkit-scrollbar{display:none}
+input::placeholder{color:#8b8984}
+.caps{font-size:11px;line-height:15px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.clamp2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ellip{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.num{font-variant-numeric:tabular-nums}
+</style></helmet>
 <div onDragOver="{{ onDragOver }}" onDragLeave="{{ onDragLeave }}" onDrop="{{ onDrop }}" style="height:100dvh;overflow:hidden;display:flex;flex-direction:column;outline:{{ dropOutline }};outline-offset:-6px">
-
-<header style="display:none;flex-wrap:wrap;align-items:center;gap:16px 24px;padding:24px 32px;border-bottom:1px solid #2a2a28">
-<div style="flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:16px 32px;flex-wrap:wrap;justify-content:center">
-<div style="display:flex;align-items:center;gap:24px;justify-content:flex-end"><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><span style="font-size:24px;white-space:nowrap">{{ away.name }}</span><span style="font-variant-numeric:tabular-nums;font-size:13px;color:#9a9893">{{ away.record }}</span></div><span style="width:48px;height:48px;flex:0 0 auto;background:{{ away.logoBg }}"></span><span style="font-variant-numeric:tabular-nums;font-size:48px;line-height:1;min-width:64px;text-align:center;color:{{ away.scoreColor }}">{{ away.score }}</span></div>
-<div style="display:flex;flex-direction:column;align-items:center;gap:4px;min-width:120px;font-variant-numeric:tabular-nums;white-space:nowrap">
-<span style="font-size:15px;color:#eceae6">{{ sbDate }}</span>
-<span style="font-size:15px;color:{{ sbSubColor }}">{{ sbSub }}</span>
-</div>
-<div style="display:flex;align-items:center;gap:24px;justify-content:flex-start"><span style="font-variant-numeric:tabular-nums;font-size:48px;line-height:1;min-width:64px;text-align:center;color:{{ home.scoreColor }}">{{ home.score }}</span><span style="width:48px;height:48px;flex:0 0 auto;background:{{ home.logoBg }}"></span><div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px"><span style="font-size:24px;white-space:nowrap">{{ home.name }}</span><span style="font-variant-numeric:tabular-nums;font-size:13px;color:#9a9893">{{ home.record }}</span></div></div>
-</div>
-<div style="flex:0 0 auto;margin-left:auto;display:flex;align-items:center;justify-content:flex-end;gap:8px;min-width:0">
-<sc-if value="{{ hasVideo }}" hint-placeholder-val="{{ false }}">
-<span style="font-variant-numeric:tabular-nums;font-size:12px;color:#9a9893;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px">{{ fileName }}</span>
-<button onClick="{{ newVideo }}" style="background:#2a2a28;color:#eceae6;border:1px solid #3a3a37;border-radius:6px;padding:8px 16px;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap" style-hover="background:#333330">Change video</button>
-</sc-if>
-<sc-if value="{{ noVideo }}" hint-placeholder-val="{{ true }}">
-<label style="background:#e8a35a;color:#1a1a19;font-size:13px;padding:8px 16px;border-radius:6px;cursor:pointer;white-space:nowrap">Choose video<input type="file" accept="video/*,.mkv" onChange="{{ onPick }}" style="display:none"></label>
-</sc-if>
-</div>
-</header>
-
-<sc-if value="{{ hasError }}" hint-placeholder-val="{{ false }}"><div style="padding:8px 32px;font-size:13px;color:#f08a6a;border-bottom:1px solid #2a2a28">{{ error }}</div></sc-if>
-
-<sc-if value="{{ hasVideo }}" hint-placeholder-val="{{ false }}">
 <video ref="{{ anaRef }}" style="position:fixed;left:0;bottom:0;width:64px;height:36px;opacity:0.01;pointer-events:none;z-index:-1"></video>
-<section style="display:none;gap:16px;padding:16px 32px;border-bottom:1px solid #2a2a28;flex-wrap:wrap;align-items:center">
-<div style="flex:1 1 420px;min-width:0;display:flex;flex-direction:column;gap:8px">
-<div style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap">
-<span style="font-size:14px">{{ statusTitle }}</span>
-<span style="font-variant-numeric:tabular-nums;font-size:12px;color:#9a9893">{{ statusSub }}</span>
-</div>
-<div style="height:3px;background:#2a2a28;border-radius:2px;overflow:hidden"><div style="height:100%;width:{{ progressW }};background:#e8a35a"></div></div>
-<sc-if value="{{ showGraph }}" hint-placeholder-val="{{ true }}"><canvas ref="{{ graphRef }}" style="width:100%;height:36px;display:block"></canvas></sc-if>
-</div>
-<div style="flex:0 0 auto;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
 
-<sc-if value="{{ isAnalyzing }}" hint-placeholder-val="{{ false }}">
-<button onClick="{{ stopAnalysis }}" style="background:transparent;color:#cfcdc8;border:1px solid #3a3a37;border-radius:6px;padding:8px 8px;font:inherit;font-size:12px;cursor:pointer" style-hover="border-color:#77756f">Stop here</button>
-</sc-if>
-</div>
-</section>
-</sc-if>
+<!-- ============ HEADER ============ -->
+<header style="flex:0 0 56px;height:56px;display:flex;align-items:center;gap:24px;padding:0 24px;border-bottom:1px solid #2a2a28;position:relative;z-index:30">
+  <div style="display:flex;align-items:center;gap:8px;flex:none">
+    <svg width="24" height="24" viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#e8a35a"></rect><rect x="5" y="7" width="2" height="10" rx="1" fill="#161615"></rect><path d="M9.5 7.6v8.8c0 .5.5.8 1 .5l6.6-4.4c.4-.3.4-.8 0-1.1l-6.6-4.3c-.5-.3-1 0-1 .5z" fill="#161615"></path></svg>
+    <span style="font-size:15px;line-height:21px;font-weight:700">Play Clipper</span>
+  </div>
+  <span style="width:1px;height:24px;background:#2a2a28;flex:none"></span>
+  <div style="display:flex;align-items:center;gap:24px;flex:none">
+    <button onClick="{{ toggleSched }}" style="height:36px;display:flex;align-items:center;gap:8px;padding:0 8px 0 16px;border-radius:6px;border:1px solid {{ schedBtnBorder }};background:{{ schedBtnBg }};font-size:13px;line-height:18px;color:#a3a19c;cursor:pointer" style-hover="border-color:#77756f">Schedule<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5l3 3 3-3" stroke="#a3a19c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+    <sc-if value="{{ hasScore }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex;align-items:center;gap:24px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <img src="{{ away.logo }}" alt="" style="width:20px;height:20px;object-fit:contain">
+        <div style="display:flex;flex-direction:column">
+          <span style="display:flex;align-items:baseline;gap:4px;white-space:nowrap"><sc-if value="{{ away.hasRank }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;line-height:17px;color:#8b8984">{{ away.rank }}</span></sc-if><span style="font-size:15px;line-height:21px;font-weight:700;color:{{ away.nameColor }}">{{ away.abbr }}</span></span>
+          <span class="num" style="font-size:12px;line-height:17px;color:#8b8984;white-space:nowrap">{{ away.rec }}</span>
+        </div>
+        <span class="num" style="font-size:20px;line-height:24px;font-weight:700;min-width:24px;text-align:right;color:{{ away.scoreColor }}">{{ away.score }}</span>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;min-width:36px">
+        <span class="caps" style="color:#a3a19c;white-space:nowrap">{{ gStatus }}</span>
+        <span class="num" style="font-size:12px;line-height:17px;color:#8b8984;white-space:nowrap">{{ gDate }}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="num" style="font-size:20px;line-height:24px;font-weight:700;min-width:24px;color:{{ home.scoreColor }}">{{ home.score }}</span>
+        <div style="display:flex;flex-direction:column;align-items:flex-end">
+          <span style="display:flex;align-items:baseline;gap:4px;white-space:nowrap"><sc-if value="{{ home.hasRank }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;line-height:17px;color:#8b8984">{{ home.rank }}</span></sc-if><span style="font-size:15px;line-height:21px;font-weight:700;color:{{ home.nameColor }}">{{ home.abbr }}</span></span>
+          <span class="num" style="font-size:12px;line-height:17px;color:#8b8984;white-space:nowrap">{{ home.rec }}</span>
+        </div>
+        <img src="{{ home.logo }}" alt="" style="width:20px;height:20px;object-fit:contain">
+      </div>
+    </div>
+    </sc-if>
+    <sc-if value="{{ noScore }}" hint-placeholder-val="{{ false }}"><span style="font-size:13px;color:{{ gameMsgColor }}">{{ gameMsg }}</span></sc-if>
+  </div>
 
-<nav style="display:none;align-items:center;gap:16px 32px;padding:16px 32px;border-bottom:1px solid #2a2a28;flex-wrap:wrap">
-<div style="display:flex;align-items:center;gap:8px">
-<div style="display:flex;gap:4px;background:#1c1c1a;border:1px solid #2a2a28;border-radius:8px;padding:4px">
-<sc-for list="{{ teamOpts }}" as="o" hint-placeholder-count="3">
-<button onClick="{{ o.pick }}" style="display:flex;align-items:center;gap:8px;background:{{ o.bg }};color:{{ o.fg }};border:none;border-radius:5px;padding:8px 16px;font:inherit;font-size:13px;cursor:pointer">
-<sc-if value="{{ o.hasLogo }}" hint-placeholder-val="{{ false }}"><span style="width:18px;height:18px;background:{{ o.logoBg }}"></span></sc-if>{{ o.label }}</button>
-</sc-for>
-</div>
-</div>
-<div style="display:flex;align-items:center;gap:8px">
-<div style="display:flex;gap:4px;background:#1c1c1a;border:1px solid #2a2a28;border-radius:8px;padding:4px">
-<sc-for list="{{ unitOpts }}" as="o" hint-placeholder-count="4">
-<button onClick="{{ o.pick }}" style="background:{{ o.bg }};color:{{ o.fg }};border:none;border-radius:5px;padding:8px 16px;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap">{{ o.label }}</button>
-</sc-for>
-</div>
-</div>
-</nav>
+  <!-- search -->
+  <div onClick="{{ focusSearch }}" style="flex:1 1 0;min-width:200px;height:40px;display:flex;align-items:center;gap:8px;padding:0 16px;border-radius:8px;background:#121211;border:1px solid {{ searchBorder }};cursor:text">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex:none"><circle cx="7" cy="7" r="4.5" stroke="#a3a19c" stroke-width="1.5"></circle><path d="M10.5 10.5L13 13" stroke="#a3a19c" stroke-width="1.5" stroke-linecap="round"></path></svg>
+    <sc-if value="{{ showChip }}" hint-placeholder-val="{{ false }}">
+      <span onClick="{{ editChip }}" style="height:24px;display:flex;align-items:center;gap:8px;padding:0 8px 0 12px;border-radius:12px;background:#3a3a37;white-space:nowrap;cursor:pointer;flex:none;max-width:60%">
+        <span class="ellip" style="font-size:13px;line-height:18px;font-weight:700">{{ q }}</span>
+        <span class="num" style="font-size:13px;line-height:18px;color:#a3a19c">{{ chipCount }}</span>
+        <button onClick="{{ clearSearch }}" aria-label="Clear search" style="width:16px;height:16px;display:flex;align-items:center;justify-content:center;border:none;background:none;padding:0;cursor:pointer"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 3l6 6M9 3l-6 6" stroke="#a3a19c" stroke-width="1.5" stroke-linecap="round"></path></svg></button>
+      </span>
+      <span style="flex:1 1 0"></span>
+    </sc-if>
+    <sc-if value="{{ showInput }}" hint-placeholder-val="{{ true }}">
+      <input ref="{{ searchRef }}" value="{{ q }}" onChange="{{ onQ }}" onKeyDown="{{ onQKey }}" onFocus="{{ onQFocus }}" onBlur="{{ onQBlur }}" placeholder="Search plays, players, tags, or ask a question" style="flex:1 1 0;min-width:0;height:100%;background:none;border:none;outline:none;font-size:13px;line-height:18px;color:#eceae6;padding:0">
+      <sc-if value="{{ hasQText }}" hint-placeholder-val="{{ false }}"><button onClick="{{ clearSearch }}" aria-label="Clear search" style="width:16px;height:16px;display:flex;align-items:center;justify-content:center;border:none;background:none;padding:0;cursor:pointer;flex:none"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 3l6 6M9 3l-6 6" stroke="#a3a19c" stroke-width="1.5" stroke-linecap="round"></path></svg></button></sc-if>
+      <sc-if value="{{ noQText }}" hint-placeholder-val="{{ true }}"><span style="flex:none;padding:0 4px;border-radius:4px;background:#1c1c1a;font-size:12px;line-height:17px;color:#8b8984">/</span></sc-if>
+    </sc-if>
+  </div>
 
-<div style="flex:0 0 auto;display:none;align-items:center;justify-content:space-between;gap:16px 32px;padding:16px 32px;flex-wrap:wrap">
-<div style="display:flex;align-items:center;gap:16px 32px;flex-wrap:wrap">
-<span style="font-size:20px;color:#eceae6;white-space:nowrap">{{ gameName }}</span>
-<div style="display:flex;align-items:center;gap:8px"><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#77756f">Side</span>
-<div style="display:flex;gap:4px;background:#1c1c1a;border:1px solid #2a2a28;border-radius:8px;padding:4px;justify-self:start">
-<sc-for list="{{ sideOpts }}" as="o" hint-placeholder-count="3">
-<button onClick="{{ o.pick }}" title="{{ o.full }}" style="background:{{ o.bg }};color:{{ o.fg }};border:none;border-radius:5px;min-width:40px;height:32px;padding:0 8px;font:inherit;font-size:13px;cursor:pointer">{{ o.label }}</button>
-</sc-for>
-</div>
-</div>
-<div style="display:flex;align-items:center;gap:8px"><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#77756f">Size</span>
-<div style="display:flex;gap:4px;background:#1c1c1a;border:1px solid #2a2a28;border-radius:8px;padding:4px;justify-self:start">
-<sc-for list="{{ zoomOpts }}" as="o" hint-placeholder-count="3">
-<button onClick="{{ o.pick }}" title="{{ o.full }}" style="background:{{ o.bg }};color:{{ o.fg }};border:none;border-radius:5px;min-width:40px;height:32px;padding:0 8px;font:inherit;font-size:14px;cursor:pointer">{{ o.label }}</button>
-</sc-for>
-</div>
-</div>
-</div>
-<div style="display:flex;align-items:center;gap:8px">
-<sc-if value="{{ hasVideo }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;color:#9a9893;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px">{{ fileName }}</span><button onClick="{{ newVideo }}" style="background:#1c1c1a;color:#eceae6;border:1px solid #2a2a28;border-radius:8px;height:40px;padding:0 16px;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap" style-hover="border-color:#77756f">Change video</button><button onClick="{{ rescan }}" style="background:#1c1c1a;color:#eceae6;border:1px solid #2a2a28;border-radius:8px;height:40px;padding:0 16px;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap" style-hover="border-color:#77756f">Rescan</button></sc-if>
-<sc-if value="{{ noVideo }}" hint-placeholder-val="{{ true }}"><label style="display:flex;align-items:center;background:#e8a35a;color:#1a1a19;font-size:13px;height:40px;padding:0 16px;border-radius:8px;cursor:pointer;white-space:nowrap">Choose video<input type="file" accept="video/*,.mkv" onChange="{{ onPick }}" style="display:none"></label></sc-if>
-</div>
-</div>
-<sc-if value="{{ hasStatus }}" hint-placeholder-val="{{ false }}"><div style="position:fixed;left:12px;top:12px;z-index:7;display:flex;align-items:center;gap:6px;background:#1c1c1a;border:1px solid #2a2a28;border-radius:999px;padding:3px 10px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:#cfcdc8;cursor:pointer" onClick="{{ nextFlag }}" title="Jump to next flagged clip"><span style="width:6px;height:6px;border-radius:50%;background:#e8a35a;flex:none"></span>{{ statusLine }}</div></sc-if>
-<div style="position:fixed;top:16px;left:16px;z-index:6">
-<sc-if value="{{ hasLibrary }}" hint-placeholder-val="{{ false }}">
-<select value="{{ curGameKey }}" onChange="{{ onPickGame }}" style="background:#1c1c1a;color:#eceae6;border:1px solid #2a2a28;border-radius:8px;height:36px;padding:0 12px;font:inherit;font-size:13px;cursor:pointer;max-width:260px">
-<option value="" disabled="disabled">Choose a game</option>
-<sc-for list="{{ library }}" as="g" hint-placeholder-count="1">
-<option value="{{ g.key }}">{{ g.title }}</option>
-</sc-for>
-</select>
-</sc-if>
-</div>
-<div style="position:fixed;top:16px;right:16px;z-index:6;display:flex;flex-direction:column;align-items:flex-end;gap:8px">
-<div style="display:flex;gap:8px;align-items:center">
-<button onClick="{{ toggleNew }}" style="background:#1c1c1a;color:#eceae6;border:1px solid #2a2a28;border-radius:8px;height:36px;padding:0 16px;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap" style-hover="border-color:#77756f">New game</button>
-</div>
-<sc-if value="{{ newOpen }}" hint-placeholder-val="{{ false }}">
-<div style="width:360px;max-width:calc(100vw - 32px);background:#1c1c1a;border:1px solid #3a3a37;border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:12px">
-<sc-if value="{{ hasLibrary }}" hint-placeholder-val="{{ false }}">
-<span style="font-size:12px;color:#9a9893">Saved games</span>
-<div style="display:flex;flex-direction:column;gap:4px">
-<sc-for list="{{ library }}" as="g" hint-placeholder-count="1">
-<button onClick="{{ g.open }}" style="display:flex;justify-content:space-between;align-items:center;gap:8px;background:#121211;color:#eceae6;border:1px solid #2a2a28;border-radius:6px;height:36px;padding:0 12px;font:inherit;font-size:13px;cursor:pointer;text-align:left" style-hover="border-color:#77756f"><span>{{ g.title }}</span><sc-if value="{{ g.current }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;color:#e8a35a">open</span></sc-if></button>
-</sc-for>
-</div>
-<div style="height:1px;background:#2a2a28"></div>
-</sc-if>
-<span style="font-size:12px;color:#9a9893">1 · ESPN game link</span>
-<input value="{{ newUrl }}" onChange="{{ onNewUrl }}" placeholder="https://www.espn.com/college-football/game/_/gameId/…" style="background:#121211;color:#eceae6;border:1px solid #2a2a28;border-radius:6px;height:36px;padding:0 12px;font:inherit;font-size:13px;outline:none">
-<span style="font-size:12px;color:#77756f">Miami vs FSU (Oct 17) is already filled in.</span>
-<span style="font-size:12px;color:#9a9893">2 · Game video</span>
-<label style="display:flex;align-items:center;justify-content:center;background:#e8a35a;color:#1a1a19;font-size:13px;height:36px;border-radius:6px;cursor:pointer">Choose video &amp; start<input type="file" accept="video/*,.mkv" onChange="{{ onNewPick }}" style="display:none"></label>
-<sc-if value="{{ hasGameError }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;color:#f08a6a">{{ gameError }}</span></sc-if>
-</div>
-</sc-if>
-</div>
-<main style="flex:1 1 0;min-height:0;display:grid;grid-template-rows:0 max-content max-content;align-content:safe center;grid-template-columns:minmax(0,1fr);overflow-y:auto;scrollbar-width:none">
-<sc-if value="{{ noPlays }}" hint-placeholder-val="{{ false }}"><div style="grid-row:1;padding:24px 32px;color:#77756f;font-size:14px">{{ emptyMsg }}</div></sc-if>
-<section data-screen-label="Clips" style="grid-row:2;min-width:0;display:flex;flex-direction:column;padding-bottom:8px;min-height:max-content">
-<div ref="{{ rowRef }}" onScroll="{{ onRowScroll }}" style="display:flex;align-items:flex-start;gap:48px;overflow-x:auto;overflow-y:hidden;min-height:0;padding:24px {{ rowPad }} 48px;scrollbar-width:none;scroll-snap-type:x mandatory">
-<sc-for list="{{ chain }}" as="c" hint-placeholder-count="3">
-<div data-ci="{{ c.ci }}" onClickCapture="{{ c.focus }}" style="cursor:{{ c.cursor }};position:relative;flex:0 0 {{ c.w }};display:flex;flex-direction:column;gap:12px;scroll-snap-align:center;opacity:{{ c.op }};filter:{{ c.fx }};transition:opacity .5s ease,filter .5s ease">
-<sc-if value="{{ c.newDrive }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;left:-24px;top:0;bottom:0;border-left:1px solid #3a3a37"></span></sc-if>
-<div style="order:1;position:relative;margin:4px 0">
+  <sc-if value="{{ isScanning }}" hint-placeholder-val="{{ false }}"><span class="num" style="flex:none;font-size:12px;line-height:17px;color:#a3a19c;white-space:nowrap" title="{{ scanTip }}">Scanning {{ scanPct }}</span></sc-if>
+  <div style="flex:none;width:32px;height:32px;border-radius:50%;background:#3a3a37"></div>
 
-<div onClick="{{ c.togglePlay }}" onMouseEnter="{{ c.enter }}" onMouseLeave="{{ c.leave }}" style="cursor:pointer;position:relative;aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:repeating-linear-gradient(135deg,#1e1e1c 0 8px,#232321 8px 16px)">
-<sc-if value="{{ c.hasThumb }}" hint-placeholder-val="{{ false }}"><img ref="{{ c.imgRef }}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block"></sc-if>
+  <!-- schedule menu -->
+  <sc-if value="{{ schedOpen }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;left:192px;top:54px;width:592px;max-height:calc(100dvh - 72px);overflow-y:auto;background:#1c1c1a;border:1px solid #2a2a28;border-radius:12px;padding:8px;box-shadow:0 16px 48px rgba(0,0,0,.5);z-index:40">
+    <div style="height:48px;display:flex;align-items:center;gap:8px;padding:0 8px">
+      <img src="{{ sched.logo }}" alt="" style="width:24px;height:24px;object-fit:contain">
+      <span style="font-size:15px;line-height:21px;font-weight:700;white-space:nowrap">{{ sched.name }}</span>
+      <span style="font-size:13px;line-height:18px;color:#a3a19c;white-space:nowrap">{{ sched.sub }}</span>
+      <span style="flex:1 1 0"></span>
+      <select value="{{ season }}" onChange="{{ onSeason }}" style="height:32px;padding:0 8px;border-radius:6px;background:#1c1c1a;border:1px solid #3a3a37;font-size:13px;color:#eceae6;cursor:pointer">
+        <sc-for list="{{ seasons }}" as="y" hint-placeholder-count="3"><option value="{{ y }}">{{ y }}</option></sc-for>
+      </select>
+    </div>
+    <div class="caps" style="height:32px;display:flex;align-items:center;padding:0 8px;color:#8b8984;border-bottom:1px solid #2a2a28">
+      <span style="width:96px">Date</span><span style="width:184px">Opponent</span><span style="width:112px">Result</span><span style="width:72px">W-L</span><span style="width:96px">Video</span>
+    </div>
+    <sc-if value="{{ schedEmpty }}" hint-placeholder-val="{{ false }}"><div style="padding:16px 8px;font-size:13px;color:#8b8984">{{ schedMsg }}</div></sc-if>
+    <sc-for list="{{ schedRows }}" as="r" hint-placeholder-count="6">
+    <div onClick="{{ r.open }}" style="height:40px;display:flex;align-items:center;padding:0 8px;border-radius:6px;background:{{ r.bg }};opacity:{{ r.op }};cursor:{{ r.cursor }}" style-hover="background:#232321">
+      <span class="num" style="width:96px;font-size:13px;line-height:18px;color:#a3a19c;white-space:nowrap">{{ r.dateTxt }}</span>
+      <span style="width:184px;display:flex;align-items:center;gap:8px;min-width:0">
+        <span style="width:16px;font-size:13px;color:#a3a19c">{{ r.at }}</span>
+        <img src="{{ r.logo }}" alt="" style="width:16px;height:16px;object-fit:contain;flex:none">
+        <sc-if value="{{ r.hasRank }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;color:#8b8984">{{ r.rank }}</span></sc-if>
+        <span class="ellip" style="font-size:13px;line-height:18px;font-weight:700">{{ r.opp }}</span>
+      </span>
+      <span class="num" style="width:112px;display:flex;gap:8px;font-size:13px;line-height:18px;white-space:nowrap"><sc-if value="{{ r.hasWL }}" hint-placeholder-val="{{ true }}"><span style="font-weight:700;color:{{ r.wlColor }}">{{ r.wl }}</span></sc-if><span style="color:{{ r.scoreColor }}">{{ r.score }}</span></span>
+      <span class="num" style="width:72px;font-size:13px;line-height:18px;color:#a3a19c;white-space:nowrap">{{ r.rec }}</span>
+      <span style="width:96px;display:flex;align-items:center">
+        <sc-if value="{{ r.canUpload }}" hint-placeholder-val="{{ false }}">
+          <label onClick="{{ stopProp }}" style="height:24px;display:flex;align-items:center;gap:4px;padding:0 12px 0 8px;border-radius:12px;background:#e8a35a;color:#161615;font-size:12px;line-height:17px;font-weight:700;cursor:pointer;white-space:nowrap"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 9V2M3 5l3-3 3 3M2 10h8" stroke="#161615" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>Upload<input type="file" accept="video/*,.mkv" onChange="{{ r.upload }}" style="display:none"></label>
+        </sc-if>
+        <sc-if value="{{ r.scanning }}" hint-placeholder-val="{{ false }}">
+          <span style="display:flex;flex-direction:column;gap:4px;width:96px"><span class="num" style="font-size:12px;line-height:17px;color:#a3a19c">Scanning {{ r.pct }}</span><span style="height:4px;border-radius:2px;background:#3a3936;overflow:hidden"><span style="display:block;height:100%;width:{{ r.pct }};background:#e8a35a"></span></span></span>
+        </sc-if>
+      </span>
+    </div>
+    </sc-for>
+  </div>
+  </sc-if>
+</header>
+<sc-if value="{{ schedOpen }}" hint-placeholder-val="{{ false }}"><div onClick="{{ toggleSched }}" style="position:fixed;inset:56px 0 0 0;background:rgba(10,10,9,.6);z-index:20"></div></sc-if>
+<sc-if value="{{ hasError }}" hint-placeholder-val="{{ false }}"><div style="flex:none;padding:8px 24px;font-size:13px;color:#f08a6a;border-bottom:1px solid #2a2a28">{{ error }}</div></sc-if>
 
-<sc-if value="{{ c.noClip }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:#77756f">{{ c.noClipTxt }}</div></sc-if>
-<sc-if value="{{ c.isEst }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:8px;left:8px;background:rgba(20,20,19,.82);color:#cfcdc8;font-size:11px;padding:4px 8px;border-radius:4px">approx.</span></sc-if>
-<sc-if value="{{ c.canSnap }}" hint-placeholder-val="{{ false }}"><button onClick="{{ c.snapPng }}" title="Save screenshot" aria-label="Save screenshot" style="position:absolute;top:8px;right:8px;z-index:6;width:36px;height:36px;border:none;border-radius:8px;background:rgba(20,20,19,.82);color:#eceae6;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0" style-hover="background:rgba(46,46,43,.95)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"></path><path d="M7 10l5 5 5-5"></path><path d="M5 20h14"></path></svg></button></sc-if>
-<sc-if value="{{ c.hasClip }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;bottom:8px;right:8px;background:rgba(20,20,19,.82);color:#eceae6;font-variant-numeric:tabular-nums;font-size:11px;padding:4px 8px;border-radius:4px">{{ c.dur }}</span></sc-if>
-</div>
+<!-- ============ CLIPS + PANEL ============ -->
+<div style="flex:0 0 auto;display:flex;gap:24px;padding:16px 0 0">
+  <div style="flex:1 1 0;min-width:0;position:relative;height:{{ rowH }}">
+    <sc-if value="{{ noPlays }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:15px;color:#8b8984">{{ emptyMsg }}</div></sc-if>
+    <div ref="{{ rowRef }}" onScroll="{{ onRowScroll }}" style="height:100%;display:flex;align-items:flex-start;gap:32px;overflow-x:auto;overflow-y:hidden;padding:0 calc(50% - {{ cardHalf }});scrollbar-width:none;scroll-snap-type:x mandatory">
+      <sc-for list="{{ cards }}" as="c" hint-placeholder-count="3">
+      <div data-ci="{{ c.ci }}" onClickCapture="{{ c.focus }}" style="flex:0 0 {{ cardW }};width:{{ cardW }};position:relative;display:flex;flex-direction:column;gap:8px;scroll-snap-align:center;opacity:{{ c.op }};transition:opacity .3s ease;cursor:{{ c.cursor }}">
+        <div style="display:flex;flex-direction:column;gap:4px;height:49px;padding-right:{{ c.padR }}">
+          <div style="display:flex;align-items:baseline;gap:8px;white-space:nowrap;min-width:0">
+            <sc-if value="{{ c.hasDown }}" hint-placeholder-val="{{ true }}"><span style="font-size:15px;line-height:21px;font-weight:700">{{ c.down }}</span><span style="font-size:15px;line-height:21px;color:#a3a19c">{{ c.spotTxt }}</span></sc-if>
+            <span class="num ellip" style="font-size:13px;line-height:18px;color:#8b8984">{{ c.meta }}</span>
+          </div>
+          <span class="ellip" style="font-size:20px;line-height:24px;font-weight:700">{{ c.title }}</span>
+        </div>
+        <sc-if value="{{ c.isCur }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;right:0;top:17px;display:flex;align-items:center;gap:16px">
+            <sc-if value="{{ hasNav }}" hint-placeholder-val="{{ false }}">
+              <div style="height:32px;display:flex;align-items:center;border-radius:16px;background:#1c1c1a">
+                <button onClick="{{ navPrev }}" aria-label="Previous match" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:none;cursor:pointer;padding:0;border-radius:16px" style-hover="background:#2a2a28"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 3L4.5 6l3 3" stroke="#eceae6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+                <span class="num" style="font-size:13px;line-height:18px;font-weight:700;white-space:nowrap">{{ navTxt }}</span>
+                <button onClick="{{ navNext }}" aria-label="Next match" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:none;cursor:pointer;padding:0;border-radius:16px" style-hover="background:#2a2a28"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 3l3 3-3 3" stroke="#eceae6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+              </div>
+            </sc-if>
+            <button onClick="{{ openComments }}" style="height:32px;display:flex;align-items:center;gap:8px;padding:0 16px;border-radius:16px;border:none;background:{{ cPillBg }};cursor:pointer;font-size:13px;line-height:18px;font-weight:700;color:#a3a19c;white-space:nowrap" style-hover="background:#2a2a28"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 3.5h9v6h-5l-2.5 2v-2h-1.5z" stroke="#a3a19c" stroke-width="1.3" stroke-linejoin="round"></path></svg>{{ cPillTxt }}</button>
+          </div>
+        </sc-if>
+        <div onClick="{{ c.togglePlay }}" onMouseEnter="{{ c.enter }}" onMouseLeave="{{ c.leave }}" style="position:relative;width:100%;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:#1c1c1a;cursor:pointer">
+          <sc-if value="{{ c.hasThumb }}" hint-placeholder-val="{{ false }}"><img ref="{{ c.imgRef }}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block"></sc-if>
+          <sc-if value="{{ c.noClip }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;color:#8b8984">{{ c.noClipTxt }}</div></sc-if>
+          <sc-if value="{{ c.canSnap }}" hint-placeholder-val="{{ false }}"><button onClick="{{ c.snapPng }}" title="Save screenshot" aria-label="Save screenshot" style="position:absolute;top:8px;right:8px;z-index:6;width:32px;height:32px;border:none;border-radius:8px;background:rgba(20,20,19,.82);color:#eceae6;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"></path><path d="M7 10l5 5 5-5"></path><path d="M5 20h14"></path></svg></button></sc-if>
+        </div>
+        <div style="height:36px;display:flex;align-items:flex-start;gap:32px;visibility:{{ c.belowVis }}">
+          <span class="clamp2" style="flex:1 1 0;max-width:400px;font-size:13px;line-height:18px;color:#a3a19c">{{ c.desc }}</span>
+          <span style="flex:0 1 auto;display:flex;gap:8px;overflow:hidden;min-width:0">
+            <sc-for list="{{ c.tags }}" as="g" hint-placeholder-count="3"><button onClick="{{ g.pick }}" style="flex:none;height:27px;padding:0 8px;border-radius:4px;background:#121211;border:1px solid #2a2a28;font-size:12px;line-height:17px;color:#a3a19c;white-space:nowrap;cursor:pointer" style-hover="border-color:#77756f;color:#eceae6">#{{ g.label }}</button></sc-for>
+          </span>
+        </div>
+      </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- side panel -->
+  <sc-if value="{{ panelOpen }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:0 0 360px;width:360px;height:{{ rowH }};margin-right:24px;background:#1c1c1a;border-radius:12px;display:flex;flex-direction:column;overflow:hidden">
+    <div style="flex:none;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 16px">
+      <span style="font-size:15px;line-height:21px;font-weight:700">{{ panelTitle }}</span>
+      <button onClick="{{ closePanel }}" aria-label="Close panel" style="width:32px;height:32px;margin-right:-8px;display:flex;align-items:center;justify-content:center;border:none;background:none;border-radius:6px;cursor:pointer;padding:0" style-hover="background:#2a2a28"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="#a3a19c" stroke-width="1.5" stroke-linecap="round"></path></svg></button>
+    </div>
+
+    <sc-if value="{{ isSearchPanel }}" hint-placeholder-val="{{ true }}">
+      <div style="flex:none;padding:0 16px 16px">
+        <div style="height:40px;display:flex;padding:4px;border-radius:8px;background:#121211">
+          <sc-for list="{{ scopeTabs }}" as="s" hint-placeholder-count="2"><button onClick="{{ s.pick }}" style="flex:1 1 0;border:none;border-radius:6px;background:{{ s.bg }};color:{{ s.fg }};font-size:13px;line-height:18px;font-weight:{{ s.fw }};cursor:pointer">{{ s.label }}</button></sc-for>
+        </div>
+      </div>
+      <div style="flex:1 1 0;min-height:0;overflow-y:auto;padding:0 16px 16px">
+        <sc-if value="{{ showSuggest }}" hint-placeholder-val="{{ true }}">
+          <div class="caps" style="color:#8b8984;padding:8px 0">Popular in this game</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;padding:8px 0 16px">
+            <sc-for list="{{ popular }}" as="g" hint-placeholder-count="6"><button onClick="{{ g.pick }}" style="height:27px;padding:0 8px;border-radius:4px;background:#121211;border:1px solid #2a2a28;font-size:12px;line-height:17px;color:#a3a19c;white-space:nowrap;cursor:pointer" style-hover="border-color:#77756f;color:#eceae6">#{{ g.label }}</button></sc-for>
+          </div>
+          <div class="caps" style="color:#8b8984;padding:8px 0">Try</div>
+          <sc-for list="{{ tries }}" as="g" hint-placeholder-count="4"><button onClick="{{ g.pick }}" style="width:100%;height:34px;display:flex;align-items:center;gap:8px;padding:0;border:none;background:none;font-size:13px;line-height:18px;color:#a3a19c;text-align:left;cursor:pointer" style-hover="color:#eceae6"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="flex:none"><path d="M3.5 8.5l5-5M4.5 3.5h4v4" stroke="#8b8984" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"></path></svg>{{ g.label }}</button></sc-for>
+        </sc-if>
+        <sc-if value="{{ showResults }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:baseline;gap:8px;padding:0 0 8px"><span style="font-size:15px;line-height:21px;font-weight:700">{{ resTitle }}</span><span class="num" style="font-size:13px;line-height:18px;color:#a3a19c">{{ resSub }}</span></div>
+          <sc-if value="{{ hasResMsg }}" hint-placeholder-val="{{ false }}"><div style="font-size:13px;line-height:18px;color:#a3a19c;padding:8px 0">{{ resMsg }}</div></sc-if>
+          <sc-for list="{{ results }}" as="r" hint-placeholder-count="5">
+          <button onClick="{{ r.go }}" style="width:100%;height:56px;display:flex;align-items:center;gap:16px;padding:0 8px;margin:0 -8px;border:none;border-radius:8px;background:{{ r.bg }};text-align:left;cursor:pointer;width:calc(100% + 16px)" style-hover="background:#232321">
+            <span style="flex:none;width:64px;height:36px;border-radius:4px;background:#2a2a28;overflow:hidden;position:relative"><sc-if value="{{ r.hasThumb }}" hint-placeholder-val="{{ false }}"><img src="{{ r.thumb }}" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></sc-if></span>
+            <span style="display:flex;flex-direction:column;min-width:0">
+              <span class="ellip" style="font-size:13px;line-height:18px;font-weight:700;color:#eceae6">{{ r.title }}</span>
+              <span class="ellip num" style="font-size:12px;line-height:17px;color:#8b8984">{{ r.meta }}</span>
+            </span>
+          </button>
+          </sc-for>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isCommentPanel }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:none;display:flex;align-items:center;gap:16px;padding:0 16px 16px;border-bottom:1px solid #2a2a28">
+        <span style="flex:none;width:64px;height:36px;border-radius:4px;background:#2a2a28;overflow:hidden"><sc-if value="{{ cmt.hasThumb }}" hint-placeholder-val="{{ false }}"><img src="{{ cmt.thumb }}" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></sc-if></span>
+        <span style="display:flex;flex-direction:column;min-width:0">
+          <span class="ellip" style="font-size:15px;line-height:21px;font-weight:700">{{ cmt.title }}</span>
+          <span class="ellip num" style="font-size:13px;line-height:18px;color:#8b8984">{{ cmt.meta }}</span>
+        </span>
+      </div>
+      <div style="flex:1 1 0;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px">
+        <sc-if value="{{ cmt.none }}" hint-placeholder-val="{{ true }}"><span style="font-size:13px;line-height:18px;color:#8b8984">No comments on this play yet.</span></sc-if>
+        <sc-for list="{{ cmt.list }}" as="m" hint-placeholder-count="3">
+        <div style="display:flex;gap:16px">
+          <span style="flex:none;width:32px;height:32px;border-radius:50%;background:#3a3a37"></span>
+          <span style="display:flex;flex-direction:column;gap:4px;min-width:0">
+            <span style="display:flex;gap:8px;font-size:13px;line-height:18px"><span style="font-weight:700;color:#a3a19c">{{ m.who }}</span><span style="color:#8b8984">{{ m.ago }}</span></span>
+            <span style="font-size:15px;line-height:21px;color:#eceae6;overflow-wrap:anywhere">{{ m.text }}</span>
+          </span>
+        </div>
+        </sc-for>
+      </div>
+      <div style="flex:none;padding:16px;border-top:1px solid #2a2a28">
+        <input value="{{ draft }}" onChange="{{ onDraft }}" onKeyDown="{{ onDraftKey }}" placeholder="Add a comment" style="width:100%;height:48px;padding:0 16px;border-radius:8px;background:#121211;border:1px solid #2a2a28;outline:none;font-size:15px;color:#eceae6">
+      </div>
+    </sc-if>
+  </div>
+  </sc-if>
 </div>
 
-<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:32px"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:15px;color:#9a9893;font-variant-numeric:tabular-nums">
-<sc-if value="{{ c.hasDown }}" hint-placeholder-val="{{ true }}"><button style="background:#242422;border:none;border-radius:6px;display:inline-flex;align-items:center;height:32px;padding:0 12px;font:inherit;font-size:15px;line-height:1;color:#eceae6;cursor:pointer;white-space:nowrap" style-hover="background:#2e2e2b">#{{ c.down }}</button><span>from</span><button style="background:#242422;border:none;border-radius:6px;display:inline-flex;align-items:center;height:32px;padding:0 12px;font:inherit;font-size:15px;line-height:1;color:#eceae6;cursor:pointer;white-space:nowrap" style-hover="background:#2e2e2b">#{{ c.spot }}</button></sc-if>
-</div></div>
-<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:15px;color:#9a9893;font-variant-numeric:tabular-nums">
-<sc-if value="{{ c.showPlayRow }}" hint-placeholder-val="{{ true }}"><sc-for list="{{ c.segs }}" as="s" hint-placeholder-count="2"><sc-if value="{{ s.hasPre }}" hint-placeholder-val="{{ false }}"><span>{{ s.pre }}</span></sc-if><button style="background:#242422;border:none;border-radius:6px;display:inline-flex;align-items:center;height:32px;padding:0 12px;font:inherit;font-size:15px;line-height:1;color:#eceae6;cursor:pointer;white-space:nowrap" style-hover="background:#2e2e2b">#{{ s.label }}</button></sc-for></sc-if>
-<sc-if value="{{ c.penTop }}" hint-placeholder-val="{{ false }}">
-<button style="background:#242422;border:none;border-radius:6px;display:inline-flex;align-items:center;height:32px;padding:0 12px;font:inherit;font-size:15px;line-height:1;color:#eceae6;cursor:pointer;white-space:nowrap;background:#3a2a1c;color:#e8a35a" style-hover="background:#45321f">#{{ c.penF }}</button>
-<sc-if value="{{ c.hasPenW }}" hint-placeholder-val="{{ false }}"><span>on</span><button style="background:#242422;border:none;border-radius:6px;display:inline-flex;align-items:center;height:32px;padding:0 12px;font:inherit;font-size:15px;line-height:1;color:#eceae6;cursor:pointer;white-space:nowrap" style-hover="background:#2e2e2b">#{{ c.penW }}</button></sc-if>
-<sc-if value="{{ c.hasPenY }}" hint-placeholder-val="{{ false }}"><button style="background:#242422;border:none;border-radius:6px;display:inline-flex;align-items:center;height:32px;padding:0 12px;font:inherit;font-size:15px;line-height:1;color:#eceae6;cursor:pointer;white-space:nowrap" style-hover="background:#2e2e2b">#{{ c.penY }}</button></sc-if>
-</sc-if>
-<sc-for list="{{ c.outTags }}" as="f" hint-placeholder-count="0"><button style="border:none;border-radius:6px;display:inline-flex;align-items:center;height:32px;padding:0 12px;font:inherit;font-size:15px;line-height:1;cursor:pointer;white-space:nowrap;background:{{ f.bg }};color:{{ f.fg }}" style-hover="opacity:.85">#{{ f.label }}</button></sc-for>
-<span style="margin-left:auto;align-self:flex-end;line-height:32px;font-size:15px;color:#77756f;font-variant-numeric:tabular-nums">{{ c.num }}</span>
+<!-- ============ TABS + TIMELINE ============ -->
+<div style="flex:none;display:flex;gap:4px;padding:16px 24px 8px">
+  <sc-for list="{{ unitTabs2 }}" as="u" hint-placeholder-count="3"><button onClick="{{ u.pick }}" style="height:32px;padding:0 16px;border:none;border-radius:6px;background:{{ u.bg }};color:{{ u.fg }};font-size:13px;line-height:18px;font-weight:{{ u.fw }};cursor:pointer" style-hover="color:#eceae6">{{ u.label }}</button></sc-for>
 </div>
-<sc-if value="{{ c.penBottom }}" hint-placeholder-val="{{ false }}"><div style="order:3;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:15px;color:#9a9893;font-variant-numeric:tabular-nums">
-<button style="background:#242422;border:none;border-radius:6px;display:inline-flex;align-items:center;height:32px;padding:0 12px;font:inherit;font-size:15px;line-height:1;color:#eceae6;cursor:pointer;white-space:nowrap;background:#3a2a1c;color:#e8a35a" style-hover="background:#45321f">#{{ c.penF }}</button>
-<sc-if value="{{ c.hasPenW }}" hint-placeholder-val="{{ false }}"><span>on</span><button style="background:#242422;border:none;border-radius:6px;display:inline-flex;align-items:center;height:32px;padding:0 12px;font:inherit;font-size:15px;line-height:1;color:#eceae6;cursor:pointer;white-space:nowrap" style-hover="background:#2e2e2b">#{{ c.penW }}</button></sc-if>
-<sc-if value="{{ c.hasPenY }}" hint-placeholder-val="{{ false }}"><button style="background:#242422;border:none;border-radius:6px;display:inline-flex;align-items:center;height:32px;padding:0 12px;font:inherit;font-size:15px;line-height:1;color:#eceae6;cursor:pointer;white-space:nowrap" style-hover="background:#2e2e2b">#{{ c.penY }}</button></sc-if>
-</div></sc-if>
-<sc-if value="{{ c.hasDef }}" hint-placeholder-val="{{ false }}"><div style="order:2;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:15px;color:#9a9893"><sc-for list="{{ c.defSegs }}" as="s" hint-placeholder-count="2"><sc-if value="{{ s.hasPre }}" hint-placeholder-val="{{ false }}"><span>{{ s.pre }}</span></sc-if><sc-if value="{{ s.isTag }}" hint-placeholder-val="{{ false }}"><button style="background:#242422;border:none;border-radius:6px;display:inline-flex;align-items:center;height:32px;padding:0 12px;font:inherit;font-size:15px;line-height:1;color:#eceae6;cursor:pointer;white-space:nowrap" style-hover="background:#2e2e2b">#{{ s.pre }}</button><span>by</span></sc-if><button style="background:#242422;border:none;border-radius:6px;display:inline-flex;align-items:center;height:32px;padding:0 12px;font:inherit;font-size:15px;line-height:1;color:#eceae6;cursor:pointer;white-space:nowrap" style-hover="background:#2e2e2b">#{{ s.label }}</button></sc-for></div></sc-if>
-
+<div ref="{{ tlRef }}" style="flex:none;overflow-x:auto;overflow-y:hidden;padding:0 24px;scrollbar-width:none;overscroll-behavior-x:contain">
+  <div style="display:flex;gap:16px;width:max-content;height:176px;user-select:none">
+    <sc-for list="{{ drives }}" as="d" hint-placeholder-count="6">
+      <sc-if value="{{ d.qDiv }}" hint-placeholder-val="{{ false }}"><div style="flex:none;width:1px;height:154px;background:#3a3a37;position:relative"><span class="caps" style="position:absolute;top:158px;left:50%;transform:translateX(-50%);color:#8b8984;white-space:nowrap">{{ d.qLab }}</span></div></sc-if>
+      <div style="flex:none;display:flex;flex-direction:column;gap:4px;min-width:72px">
+        <div style="height:24px;display:flex;align-items:center;gap:8px;white-space:nowrap">
+          <span class="num" style="font-size:20px;line-height:24px;font-weight:700;color:{{ d.numColor }}">{{ d.num }}</span>
+          <sc-if value="{{ d.hasChip }}" hint-placeholder-val="{{ true }}"><span class="caps" style="padding:2px 4px;border-radius:4px;background:{{ d.chipBg }};color:{{ d.chipFg }}">{{ d.chip }}</span></sc-if>
+        </div>
+        <span class="num" style="font-size:12px;line-height:17px;color:#8b8984;white-space:nowrap"><sc-if value="{{ d.hasTeam }}" hint-placeholder-val="{{ false }}"><span style="font-weight:700;color:#a3a19c">{{ d.team }} </span></sc-if><span style="color:{{ d.spotColor }}">{{ d.spot }}</span>{{ d.time }}</span>
+        <div style="display:flex">
+          <sc-for list="{{ d.plays }}" as="t" hint-placeholder-count="6">
+          <button data-i="{{ t.i }}" onPointerDown="{{ t.down }}" onPointerEnter="{{ t.enter }}" title="{{ t.tip }}" style="width:20px;height:103px;flex:none;display:flex;flex-direction:column;align-items:center;gap:4px;padding:4px 0;border:none;border-radius:4px;background:{{ t.bg }};opacity:{{ t.op }};cursor:pointer;font:inherit" style-hover="background:#1c1c1a">
+            <span class="num" style="font-size:10px;line-height:14px;color:{{ t.fg }}">{{ t.inDrive }}</span>
+            <span style="width:10px;height:10px;display:flex;align-items:center;justify-content:center">
+              <sc-if value="{{ t.isFd }}" hint-placeholder-val="{{ false }}"><svg width="8" height="7" viewBox="0 0 8 7"><path d="M4 0l4 7H0z" fill="{{ t.mk }}"></path></svg></sc-if>
+              <sc-if value="{{ t.isTd }}" hint-placeholder-val="{{ false }}"><svg width="8" height="8" viewBox="0 0 10 10"><path d="M5 0l1.2 3.4H10L7 5.6 8.1 9.2 5 7 1.9 9.2 3 5.6 0 3.4h3.8z" fill="{{ t.mk }}"></path></svg></sc-if>
+            </span>
+            <span style="position:relative;width:10px;height:45px;flex:none">
+              <span style="position:absolute;left:0;top:0;width:10px;height:32px;border-radius:2px;background:{{ t.track }}"></span>
+              <span style="position:absolute;left:{{ t.fL }};top:{{ t.fTop }};width:{{ t.fW }};height:{{ t.fH }};border-radius:{{ t.fRad }};background:{{ t.fBg }};box-shadow:{{ t.fEdge }}"></span>
+              <span style="position:absolute;left:-5px;top:32px;width:20px;height:1px;background:#3a3a37"></span>
+            </span>
+            <span class="num" style="font-size:10px;line-height:14px;color:{{ t.fg }}">{{ t.num }}</span>
+          </button>
+          </sc-for>
+        </div>
+      </div>
+    </sc-for>
+  </div>
 </div>
-</sc-for>
-</div>
-</section>
-<section data-screen-label="Timeline" style="grid-row:3;min-width:0;padding:8px 0 24px">
-<div style="display:flex;padding:0 32px 16px">
-<select value="{{ unitVal }}" onChange="{{ onUnit }}" style="background:#1c1c1a;color:#eceae6;border:1px solid #3a3a37;border-radius:6px;padding:6px 28px 6px 12px;font:inherit;font-size:13px;cursor:pointer;appearance:none;background-image:linear-gradient(45deg,transparent 50%,#9a9893 50%),linear-gradient(135deg,#9a9893 50%,transparent 50%);background-position:calc(100% - 15px) 50%,calc(100% - 10px) 50%;background-size:5px 5px;background-repeat:no-repeat">
-<sc-for list="{{ unitTabs }}" as="u" hint-placeholder-count="3"><option value="{{ u.key }}">{{ u.label }}</option></sc-for>
-</select>
-</div>
-<div ref="{{ tlRef }}" style="padding:0 32px;overflow-x:auto;scrollbar-width:none;overscroll-behavior-x:contain">
-<div style="display:flex;flex-direction:column;gap:20px;width:max-content;min-width:100%;min-height:{{ tlMinH }}">
-<sc-for list="{{ tlRows }}" as="row" hint-placeholder-count="1">
-<div style="display:flex;flex-direction:column;gap:8px">
-<sc-if value="{{ row.show }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;gap:12px;position:sticky;left:0;width:calc(100vw - 64px)"><div style="font-size:11px;color:#77756f;white-space:nowrap">{{ row.label }}</div><div style="flex:1 1 0;height:1px;background:#3a3a37"></div></div></sc-if>
-<div style="display:flex;gap:{{ tlGap }};width:max-content;min-width:100%;user-select:none;touch-action:pan-x">
-<sc-for list="{{ row.drives }}" as="d" hint-placeholder-count="6">
-<div style="flex:{{ d.n }} 0 auto;min-width:64px;display:flex;flex-direction:column;gap:6px">
-<div style="display:flex;flex-direction:column;font-size:12px;line-height:16px;font-variant-numeric:tabular-nums;white-space:nowrap;padding-top:4px"><span style="display:flex;justify-content:flex-start;align-items:flex-end;gap:6px;padding:0 0 8px;line-height:1"><span style="font-size:24px;line-height:1;text-box:trim-both cap alphabetic;color:{{ d.numColor }}">{{ d.long }}</span><span style="font-size:12px;text-box:trim-both cap alphabetic;color:{{ d.numColor }}">{{ d.num2 }}</span><span title="Drive start" style="display:{{ d.spotD }};font-size:12px;text-box:trim-both cap alphabetic;color:{{ d.spotColor }}">{{ d.spot }}</span></span></div>
-<div style="order:1;display:none;height:34px;margin-top:-2px"><sc-for list="{{ d.ticks }}" as="t" hint-placeholder-count="6"><span style="position:relative;flex:1 1 0;min-width:20px;display:flex;justify-content:center;visibility:{{ t.mark }}"><span onPointerDown="{{ markDown }}" title="Drag to scrub · click a bar · ← → to step" style="position:absolute;top:0;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;cursor:grab;touch-action:none;z-index:2"><span style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:7px solid #eceae6"></span><span style="display:flex;align-items:center;gap:6px;padding:0 10px 0 8px;height:24px;background:#eceae6;color:#1a1a19;border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,.45);white-space:nowrap" style-hover="background:#ffffff"><span style="display:grid;grid-template-columns:repeat(2,3px);gap:2px"><span style="width:3px;height:3px;border-radius:50%;background:#1a1a19"></span><span style="width:3px;height:3px;border-radius:50%;background:#1a1a19"></span><span style="width:3px;height:3px;border-radius:50%;background:#1a1a19"></span><span style="width:3px;height:3px;border-radius:50%;background:#1a1a19"></span><span style="width:3px;height:3px;border-radius:50%;background:#1a1a19"></span><span style="width:3px;height:3px;border-radius:50%;background:#1a1a19"></span></span><span style="font-size:12px;line-height:12px;height:12px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;text-box:trim-both cap alphabetic;display:flex;align-items:center">Drag</span></span></span></span></sc-for></div>
-<sc-if value="{{ d.hasWp }}" hint-placeholder-val="{{ false }}"><div style="position:relative;display:none;height:24px"><span style="position:absolute;left:0;right:0;top:11px;height:1px;background:#2a2a28"></span><sc-for list="{{ d.ticks }}" as="t" hint-placeholder-count="6"><span style="position:relative;flex:1 1 0;min-width:20px"><span style="position:absolute;left:0;right:0;top:{{ t.wpTop }};height:1.5px;background:#cfcdc8"></span><span style="position:absolute;left:0;width:1.5px;top:{{ t.stepTop }};height:{{ t.stepH }};background:#cfcdc8"></span></span></sc-for></div></sc-if>
-<div style="display:flex"><div style="flex:1 1 0;min-width:0;display:flex;background:{{ d.stripBg }};border-radius:4px;overflow:hidden;transition:background .3s ease">
-<sc-for list="{{ d.ticks }}" as="t" hint-placeholder-count="6">
-<button data-i="{{ t.i }}" onPointerDown="{{ t.down }}" onPointerEnter="{{ t.enter }}" style="flex:1 1 0;min-width:20px;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0;background:{{ t.bg }};border:none;font:inherit;cursor:pointer;color:{{ t.fg }}" style-hover="background:#2a2a28">
-<span style="font-size:10px;line-height:1;letter-spacing:-.04em;font-variant-numeric:tabular-nums;white-space:nowrap">{{ t.inDrive }}</span><span title="{{ t.flagWhy }}" style="display:{{ t.flagD }};width:6px;height:6px;border-radius:50%;background:#f0604a;margin-top:-2px"></span>
-
-<span style="display:flex;flex-direction:column;align-items:center;width:100%"><span style="position:relative;align-self:stretch;height:72px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:3px"><span style="position:relative;z-index:1;font-size:10px;line-height:1;color:#ffffff">{{ t.star }}</span><span style="display:{{ t.toD }};width:8px;height:8px;margin:0 0 2px;border-radius:50%;background:#ffffff"></span><span style="display:{{ t.chk }};width:0;height:0;margin:0 0 2px;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:7px solid #ffffff"></span><span style="display:{{ t.todD }};width:0;height:0;margin:0 0 2px;border-left:4px solid transparent;border-right:4px solid transparent;border-top:7px solid #f08a6a"></span><span style="display:{{ t.penUpD }};position:relative;z-index:1;width:{{ t.bw }};height:{{ t.penUp }};background:#e3c34a;border-radius:1px"></span><span style="position:relative;z-index:1;width:{{ t.bw }};height:{{ t.hUp }};background:{{ t.fill }};box-shadow:{{ t.edge }};border-radius:{{ t.rad }};box-sizing:border-box"></span></span><span style="height:1px;width:100%;background:{{ t.base }}"></span><span style="height:16px;display:flex;flex-direction:column;align-items:center;gap:2px"><span style="width:{{ t.bw }};height:{{ t.hDn }};background:{{ t.fill }};box-shadow:{{ t.edge }};border-radius:{{ t.rad }};box-sizing:border-box"></span><span style="display:{{ t.penDnD }};width:{{ t.bw }};height:{{ t.penDn }};background:#e3c34a;border-radius:1px"></span><span style="display:{{ t.sackD }};width:0;height:0;margin-top:3px;border-left:4px solid transparent;border-right:4px solid transparent;border-top:7px solid #ffffff"></span></span></span>
-<span style="display:flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 2px;box-sizing:border-box;border-radius:2px;box-shadow:{{ t.ring }};font-size:10px;line-height:1;letter-spacing:-.04em;color:{{ t.fg2 }};font-variant-numeric:tabular-nums;white-space:nowrap;visibility:{{ t.numVis }}">{{ t.total }}</span>
-</button>
-</sc-for>
-</div></div>
-<div style="display:flex;margin-top:-2px"><sc-for list="{{ d.ticks }}" as="t" hint-placeholder-count="6"><span style="flex:1 1 0;min-width:20px;height:16px;display:flex;align-items:center;gap:6px;margin-right:{{ t.qExt }}"><span style="display:{{ t.qD }};padding-left:{{ t.qPad }};font-size:10px;line-height:1;color:#9a9893;white-space:nowrap">{{ t.qLab }}</span><span style="flex:1 1 0;height:1px;background:#4a4a46"></span></span></sc-for></div>
-</div>
-</sc-for>
-</div>
-</div>
-</sc-for>
-</div>
-</div>
-
-</section>
-
-</main>
 
 <sc-if value="{{ hasOpen }}" hint-placeholder-val="{{ false }}">
 <div onClick="{{ closeOpen }}" style="position:fixed;inset:0;background:rgba(12,12,11,.92);display:flex;align-items:center;justify-content:center;z-index:50;padding:32px">
 <div onClick="{{ stopProp }}" style="width:100%;max-width:1100px;display:flex;flex-direction:column;gap:16px">
-<div style="display:flex;justify-content:space-between;align-items:baseline;gap:16px">
-<div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap"><span style="font-size:20px">{{ openTitle }}</span><span style="font-variant-numeric:tabular-nums;font-size:13px;color:#9a9893">{{ openMeta }}</span></div>
-<button onClick="{{ closeOpen }}" style="background:transparent;color:#9a9893;border:none;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap" style-hover="color:#eceae6">Close · Esc</button>
-</div>
-<sc-if value="{{ hasOpenDesc }}" hint-placeholder-val="{{ false }}"><div style="font-size:15px;color:#cfcdc8;text-wrap:pretty">{{ openDesc }}</div></sc-if>
+<div style="display:flex;justify-content:space-between;align-items:baseline;gap:16px"><span style="font-size:20px;font-weight:700">{{ openTitle }}</span><button onClick="{{ closeOpen }}" style="background:transparent;color:#a3a19c;border:none;font-size:13px;cursor:pointer">Close · Esc</button></div>
 <video ref="{{ modalRef }}" src="{{ src }}" controls="{{ true }}" onTimeUpdate="{{ modalTime }}" style="width:100%;aspect-ratio:16/9;background:#000;border-radius:8px"></video>
-<div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
-<button onClick="{{ prevClip }}" style="background:#2a2a28;color:#eceae6;border:1px solid #3a3a37;border-radius:6px;padding:8px 16px;font:inherit;font-size:13px;cursor:pointer" style-hover="background:#333330">← Prev</button>
-<div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap">
-<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#9a9893"><span>Start</span>
-<button onClick="{{ startMinus }}" style="background:#2a2a28;color:#eceae6;border:1px solid #3a3a37;border-radius:5px;width:30px;height:30px;font:inherit;cursor:pointer">−</button>
-<span style="font-variant-numeric:tabular-nums;color:#eceae6;min-width:64px;text-align:center">{{ startTxt }}</span>
-<button onClick="{{ startPlus }}" style="background:#2a2a28;color:#eceae6;border:1px solid #3a3a37;border-radius:5px;width:30px;height:30px;font:inherit;cursor:pointer">+</button></div>
-<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#9a9893"><span>End</span>
-<button onClick="{{ endMinus }}" style="background:#2a2a28;color:#eceae6;border:1px solid #3a3a37;border-radius:5px;width:30px;height:30px;font:inherit;cursor:pointer">−</button>
-<span style="font-variant-numeric:tabular-nums;color:#eceae6;min-width:64px;text-align:center">{{ endTxt }}</span>
-<button onClick="{{ endPlus }}" style="background:#2a2a28;color:#eceae6;border:1px solid #3a3a37;border-radius:5px;width:30px;height:30px;font:inherit;cursor:pointer">+</button></div>
-<button onClick="{{ deleteClip }}" style="background:transparent;color:#f08a6a;border:1px solid #4a3530;border-radius:6px;padding:8px 16px;font:inherit;font-size:12px;cursor:pointer" style-hover="border-color:#f08a6a">Remove clip</button>
-</div>
-<button onClick="{{ nextClip }}" style="background:#2a2a28;color:#eceae6;border:1px solid #3a3a37;border-radius:6px;padding:8px 16px;font:inherit;font-size:13px;cursor:pointer" style-hover="background:#333330">Next →</button>
-</div>
 </div>
 </div>
 </sc-if>
@@ -252,7 +288,7 @@ class Component extends DCLogic {
   samples = []; thumbs = {}; edits = {}; vrefs = {}; refs = {};
 
   componentDidMount() {
-    this.cacheGet('library').then(lib => { lib = lib || []; const cx = lib.find(x => /^v2\|videoplayback\.mp4\|7102906876\|/.test(x.key)); if (cx && !/CLEM/.test(cx.title || '')) { cx.title = 'MIA @ CLEM · Oct 3, 2026'; cx.gameUrl = 'https://www.espn.com/college-football/game/_/gameId/401858249/miami-clemson'; this.cachePut('library', lib); } this.setState({ library: lib.map(x => ({ key: x.key, title: x.title })) }); });
+    this.cacheGet('library').then(lib => { lib = lib || []; const cx = lib.find(x => /^v2\|videoplayback\.mp4\|7102906876\|/.test(x.key)); if (cx && !/CLEM/.test(cx.title || '')) { cx.title = 'MIA @ CLEM · Oct 3, 2026'; cx.gameUrl = 'https://www.espn.com/college-football/game/_/gameId/401858249/miami-clemson'; this.cachePut('library', lib); } this.setState({ library: lib.map(x => ({ key: x.key, title: x.title, gid: this.gidOf(x.gameUrl) })) }); });
     window.__clipper = this;
     const wake = async () => { const busy = this.state.phase === 'analyzing' || this.bugBusy; try { if (busy && !this._wake && navigator.wakeLock) { this._wake = await navigator.wakeLock.request('screen'); this._wake.addEventListener('release', () => { this._wake = null; }); } else if (!busy && this._wake) { this._wake.release(); this._wake = null; } } catch (e) {} };
     clearInterval(this._wakeT); this._wakeT = setInterval(wake, 5000); document.addEventListener('visibilitychange', wake);
@@ -268,6 +304,9 @@ class Component extends DCLogic {
     };
     this.onResize = () => { this.drawGraph(); clearTimeout(this._rzTO); this._rzTO = setTimeout(() => this.forceUpdate(), 100); };
     window.addEventListener('keydown', this.onKey);
+    this.onUiKey = (e) => { const tag = ((document.activeElement || {}).tagName || ''); if (e.key === 'Escape') { if (this.state.schedOpen) { this.setState({ schedOpen: false }); return; } } if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(tag) && !e.metaKey && !e.ctrlKey) { e.preventDefault(); this._focusSearch = true; if (this.searchEl) { this.searchEl.focus(); this.searchEl.select(); } this.setState({ qFocus: true, panel: 'search' }, () => this.recenter()); } };
+    window.addEventListener('keydown', this.onUiKey);
+    this.loadSchedule();
     window.addEventListener('resize', this.onResize);
     this.restoreLast();
   }
@@ -299,11 +338,11 @@ class Component extends DCLogic {
   componentWillUnmount() {
     clearInterval(this._thumbWatch);
     this.unmounting = true; this.reset(); this.unmounting = false;
-    window.removeEventListener('keydown', this.onKey);
+    window.removeEventListener('keydown', this.onKey); window.removeEventListener('keydown', this.onUiKey);
     window.removeEventListener('resize', this.onResize); window.removeEventListener('keydown', this.onTlKey, true); window.removeEventListener('pointerdown', this.onFocusDown, true); window.removeEventListener('pointerup', this.onTlUp);
   }
   componentDidUpdate() {
-    if (this.state.game && this.state.game.title && this.fileKey && this.file && this._libTitled !== this.fileKey + this.state.game.title) { this._libTitled = this.fileKey + this.state.game.title; this.libAdd({ key: this.fileKey, file: this.file, gameUrl: this.state.gameUrl, title: this.state.game.title }); } this.drawGraph(); this.syncStage(); }
+    if (this.state.game && this.state.game.title && this.fileKey && this.file && this._libTitled !== this.fileKey + this.state.game.title) { this._libTitled = this.fileKey + this.state.game.title; this.libAdd({ key: this.fileKey, file: this.file, gameUrl: this.state.gameUrl, title: this.state.game.title }); } this.drawGraph(); this.syncStage(); this.loadComments(); }
   setCur(i, scroll, row) { if (i !== (this.state.cur || 0) && this.hvKey) this.hoverStop(this.hvKey); this._tlScroll = !!scroll; if (row) this.scrollRow(i); if (i !== this.state.cur) this.setState({ cur: i }); else this.syncStage(); }
   scrollRow(i) {
     const el = this.rowEl, k = el && el.querySelector('[data-ci="' + i + '"]'); if (!k) return;
@@ -325,6 +364,7 @@ class Component extends DCLogic {
   }
 
   fitRow() {
+    return;
     const cards = [...document.querySelectorAll('[data-ci]')]; if (!cards.length) return; const row = cards[0].parentElement, RB0 = row.getBoundingClientRect();
     const vid = Math.max(...cards.slice(0, 12).map(c => { const v = c.querySelector('[style*="aspect-ratio"]'); return v ? v.getBoundingClientRect().bottom : 0; }));
     const ht0 = Math.round(vid - RB0.top + 8 + 32 + 64 - 8) + 'px'; if (row.style.height !== ht0) row.style.height = ht0; return;
@@ -357,12 +397,24 @@ class Component extends DCLogic {
     if (!m) { this.setState({ gameError: "Couldn't find a gameId in that link." }); return; }
     this.setState({ gameLoading: true, gameError: '' });
     try {
-      const r = await fetch('https://site.api.espn.com/apis/site/v2/sports/football/college-football/summary?event=' + m[1]);
+      const game = await this.fetchGame(m[1]); const title = game.title;
+      this.setState({ game, gameLoading: false }, () => { if (this.samples.length) this.redetect(); });
+      const last = await this.cacheGet('lastVideo');
+      if (last) this.cachePut('lastVideo', { ...last, gameUrl: u });
+      if (this.fileKey && this.file) this.libAdd({ key: this.fileKey, file: this.file, gameUrl: u, title });
+    } catch (e) {
+      this.setState({ gameLoading: false, gameError: 'Could not load ESPN data: ' + e.message });
+    }
+  }
+
+  async fetchGame(gid) {
+    const m = [null, gid];
+    const r = await fetch('https://site.api.espn.com/apis/site/v2/sports/football/college-football/summary?event=' + m[1]);
       const j = await r.json();
       const comp = j.header && j.header.competitions && j.header.competitions[0];
       const cs = (comp && comp.competitors) || [];
       const teams = ['away', 'home'].map(h => cs.find(c => c.homeAway === h)).filter(Boolean)
-        .map(c => ({ id: String(c.team.id || c.id), abbr: c.team.abbreviation, name: c.team.location || c.team.shortDisplayName || c.team.abbreviation, score: c.score != null ? String(c.score) : '', record: (c.record && c.record[0] && (c.record[0].summary || c.record[0].displayValue)) || '', winner: !!c.winner, color: '#' + (c.team.color || '777777'), alt: '#' + (c.team.alternateColor || 'cfcdc8'), logo: (c.team.logos && c.team.logos[0] && c.team.logos[0].href) || c.team.logo || ('https://a.espncdn.com/i/teamlogos/ncaa/500/' + (c.team.id || c.id) + '.png') }));
+        .map(c => ({ id: String(c.team.id || c.id), abbr: c.team.abbreviation, name: c.team.location || c.team.shortDisplayName || c.team.abbreviation, score: c.score != null ? String(c.score) : '', record: (c.record && c.record[0] && (c.record[0].summary || c.record[0].displayValue)) || '', winner: !!c.winner, rank: (c.curatedRank && c.curatedRank.current) || c.rank || '', recs: (c.record || []).map(r => ({ type: r.type, s: r.summary || r.displayValue || '' })), color: '#' + (c.team.color || '777777'), alt: '#' + (c.team.alternateColor || 'cfcdc8'), logo: (c.team.logos && c.team.logos[0] && c.team.logos[0].href) || c.team.logo || ('https://a.espncdn.com/i/teamlogos/ncaa/500/' + (c.team.id || c.id) + '.png') }));
       if (teams.length === 2) {
         const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) || 0);
         const dist = (a, b) => { const x = rgb(a), y = rgb(b); return Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]); };
@@ -417,15 +469,8 @@ class Component extends DCLogic {
       if (!plays.length) throw new Error('No timed plays in that game yet.');
       const dt = comp && comp.date ? new Date(comp.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
       const title = (teams.length === 2 ? `${teams[0].abbr} @ ${teams[1].abbr}` : 'Game ' + m[1]) + (dt ? ' · ' + dt : '');
-      this.setState({ game: { v: 27, homeId: teams[1] ? teams[1].id : '', title, venue: (j.gameInfo && j.gameInfo.venue && j.gameInfo.venue.fullName) || '', city: (() => { const a = j.gameInfo && j.gameInfo.venue && j.gameInfo.venue.address; return a ? [a.city, a.state].filter(Boolean).join(', ') : ''; })(), status: (comp && comp.status && comp.status.type && (comp.status.type.shortDetail || comp.status.type.detail)) || '', net: (comp && comp.broadcasts && comp.broadcasts[0] && ((comp.broadcasts[0].media && comp.broadcasts[0].media.shortName) || comp.broadcasts[0].type && comp.broadcasts[0].type.shortName)) || '', date: dt, plays, teams, drives: driveInfo }, gameLoading: false }, () => { if (this.samples.length) this.redetect(); });
-      const last = await this.cacheGet('lastVideo');
-      if (last) this.cachePut('lastVideo', { ...last, gameUrl: u });
-      if (this.fileKey && this.file) this.libAdd({ key: this.fileKey, file: this.file, gameUrl: u, title });
-    } catch (e) {
-      this.setState({ gameLoading: false, gameError: 'Could not load ESPN data: ' + e.message });
-    }
+    return { v: 27, gid: String(gid), state: (comp && comp.status && comp.status.type && comp.status.type.state) || '', dateShort: comp && comp.date ? new Date(comp.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '', homeId: teams[1] ? teams[1].id : '', title, venue: (j.gameInfo && j.gameInfo.venue && j.gameInfo.venue.fullName) || '', city: (() => { const a = j.gameInfo && j.gameInfo.venue && j.gameInfo.venue.address; return a ? [a.city, a.state].filter(Boolean).join(', ') : ''; })(), status: (comp && comp.status && comp.status.type && (comp.status.type.shortDetail || comp.status.type.detail)) || '', net: (comp && comp.broadcasts && comp.broadcasts[0] && ((comp.broadcasts[0].media && comp.broadcasts[0].media.shortName) || comp.broadcasts[0].type && comp.broadcasts[0].type.shortName)) || '', date: dt, plays, teams, drives: driveInfo };
   }
-
   cleanText(raw) {
     let t = String(raw || '').replace(/^\(\d+:\d+\)\s*/, '').replace(/#\d+\s*/g, '').trim();
     for (let i = 0; i < 3; i++) t = t.replace(/^(No Huddle-Shotgun|No Huddle|Shotgun|Under Center|Pistol|Wildcat)[\s,-]*/i, '');
@@ -552,7 +597,7 @@ class Component extends DCLogic {
     if (i >= 0) lib[i] = { ...lib[i], ...g, title: g.title || lib[i].title }; else lib.unshift(g);
     lib.forEach(x => { if (x.key === this.fileKey && this.state.game && this.state.game.title && /\.(mp4|mov|webm|m4v|mkv)$|^$/i.test(x.title || '')) x.title = this.state.game.title; if (!x.title) x.title = (x.file && x.file.name) || 'Game'; });
     await this.cachePut('library', lib);
-    this.setState({ library: lib.map(x => ({ key: x.key, title: x.title })) });
+    this.setState({ library: lib.map(x => ({ key: x.key, title: x.title, gid: this.gidOf(x.gameUrl) })) });
   }
   async libOpen(key) {
     const lib = (await this.cacheGet('library')) || [];
@@ -2096,7 +2141,300 @@ class Component extends DCLogic {
   }
   centered() { return (this.props.centerLarge ?? true) && (this.state.zoom || 'l') === 'l'; }
   goPlay(i) { this.setState({ active: i }, () => { const el = this.chainEl; if (!el) return; const k = [...el.children].filter(k => k.offsetWidth > 0)[i]; if (k) el.scrollTo({ left: this.centered() ? k.offsetLeft - (el.clientWidth - k.offsetWidth) / 2 : k.offsetLeft - 32, behavior: 'smooth' }); }); }
+  // ================= v10 UI: header · schedule · clip cards · search · comments · timeline =================
+  TEAM = '2390';
+  gidOf(u) { const s = String(u || ''), m = s.match(/gameId[\/=_]*(\d{6,})/i) || s.match(/^(\d{6,})$/); return m ? m[1] : ''; }
+  espnUrl(gid) { return 'https://www.espn.com/college-football/game/_/gameId/' + gid; }
+  async loadSchedule(season) {
+    season = +(season || this.state.season || 2026);
+    this.setState({ season, schedLoading: true, schedError: '' });
+    try {
+      const j = await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams/${this.TEAM}/schedule?season=${season}`).then(r => r.json());
+      const T = j.team || {};
+      const val = x => x && x.score != null ? (typeof x.score === 'object' ? (x.score.displayValue ?? String(x.score.value)) : String(x.score)) : '';
+      const rec = (x, t) => (((x && x.record) || []).find(r => r.type === t) || {}).displayValue || '';
+      const rows = (j.events || []).map(ev => {
+        const c = ev.competitions[0], me = c.competitors.find(x => String(x.team.id) === this.TEAM), op = c.competitors.find(x => String(x.team.id) !== this.TEAM);
+        const stt = (c.status && c.status.type) || {}, done = !!stt.completed, live = stt.state === 'in', d = new Date(ev.date);
+        const a = +val(me) || 0, b = +val(op) || 0, rk = op && op.curatedRank && op.curatedRank.current;
+        return { id: String(ev.id), dateTxt: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }), at: me && me.homeAway === 'away' ? '@' : 'vs',
+          opp: op ? (op.team.shortDisplayName || op.team.location || op.team.abbreviation) : 'TBD', oppAbbr: op ? op.team.abbreviation : '', logo: op && op.team.logos && op.team.logos[0] ? op.team.logos[0].href : '',
+          rank: rk && rk <= 25 ? String(rk) : '', done, live, win: !!(me && me.winner), score: done || live ? `${Math.max(a, b)}-${Math.min(a, b)}` : '',
+          time: done || live ? '' : (ev.timeValid === false ? 'TBD' : d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })),
+          wlRec: done ? `${rec(me, 'total')} (${rec(me, 'vsconf')})` : '' };
+      });
+      this.setState({ sched: { season, name: T.displayName || 'Miami Hurricanes', sub: [T.recordSummary, T.standingSummary].filter(Boolean).join(' · '), logo: T.logo || ('https://a.espncdn.com/i/teamlogos/ncaa/500/' + this.TEAM + '.png'), rows }, schedLoading: false });
+    } catch (e) { this.setState({ schedLoading: false, schedError: 'Could not load the schedule from ESPN.' }); }
+  }
+  async openGame(gid, jumpKey) {
+    this.setState({ schedOpen: false });
+    if (jumpKey) this._jumpKey = jumpKey;
+    const L = (this.state.library || []).find(g => g.gid === gid);
+    if (L) { if (L.key === this.fileKey) { this.forceUpdate(); return; } return this.libOpen(L.key); }
+    if (!this.file && this.gidOf(this.state.gameUrl) === gid && this.state.game) { this.forceUpdate(); return; }
+    this.reset(); this.fileKey = null; this.file = null;
+    await new Promise(r => this.setState({ gameUrl: this.espnUrl(gid), game: null, gameError: '', phase: 'empty', src: null, fileName: '', clips: [], rawClips: [], cur: 0 }, r));
+    this.cachePut('lastVideo', { gameUrl: this.espnUrl(gid) });
+    await this.loadGame();
+  }
+  async uploadFor(gid, file) {
+    if (!file) return;
+    this.setState({ schedOpen: false });
+    this.reset();
+    await new Promise(r => this.setState({ gameUrl: this.espnUrl(gid), game: null, gameError: '', phase: 'empty', clips: [], rawClips: [], cur: 0 }, r));
+    await this.loadGame();
+    await this.load(file);
+  }
+  // ---- comments (saved in this browser until accounts exist) ----
+  async loadComments() {
+    const gid = this.gidOf(this.state.gameUrl); if (!gid || this._cmtG === gid) return; this._cmtG = gid;
+    const c = (await this.cacheGet('comments|' + gid)) || {};
+    if (this.gidOf(this.state.gameUrl) === gid) this.setState({ comments: c });
+  }
+  addComment(key, text) {
+    text = String(text || '').trim(); const gid = this.gidOf(this.state.gameUrl); if (!text || !key || !gid) return;
+    const all = { ...(this.state.comments || {}) }; all[key] = [...(all[key] || []), { who: 'You', t: Date.now(), text }];
+    this.setState({ comments: all, draft: '' }); this.cachePut('comments|' + gid, all);
+  }
+  ago(t) { const s = Math.max(0, (Date.now() - t) / 1000); return s < 60 ? 'now' : s < 3600 ? Math.floor(s / 60) + 'm' : s < 86400 ? Math.floor(s / 3600) + 'h' : Math.floor(s / 86400) + 'd'; }
+  // ---- search ----
+  stem(w) { return w.length > 4 && /ies$/.test(w) ? w.slice(0, -3) + 'y' : w.length > 4 && /(ss|us)$/.test(w) ? w : w.length > 3 && /es$/.test(w) && /(sh|ch|ss|x)es$/.test(w) ? w.slice(0, -2) : w.length > 3 && /s$/.test(w) ? w.slice(0, -1) : w; }
+  searchSpec(q) {
+    q = String(q || '').toLowerCase().replace(/[“”"]/g, '').trim(); if (!q) return null;
+    if (/^(why|how|what|who|when|where|which|did|does|do|can|should|is|are|was|were)\b/.test(q) || /\?\s*$/.test(q)) return { question: true };
+    const S = { words: [], minY: null, down: 0, qtr: 0, redzone: false, firstDown: false, afterPen: false };
+    let t = ' ' + q.replace(/#/g, ' ') + ' ';
+    t = t.replace(/\b(right )?after (a |the )?(penalty|penalties|flags?)\b/g, () => { S.afterPen = true; return ' '; });
+    t = t.replace(/(\d+)\s*\+\s*(yards?|yds?)?/g, (_, n) => { S.minY = +n; return ' '; });
+    t = t.replace(/\b(?:q([1-4])|([1-4])(?:st|nd|rd|th) quarter)\b/g, (_, a, b) => { S.qtr = +(a || b); return ' '; });
+    t = t.replace(/\b(1st|first)[\s-]*downs?\b/g, () => { S.firstDown = true; return ' '; });
+    t = t.replace(/\b([234])(?:nd|rd|th)[\s-]*(?:and|&)?[\s-]*downs?\b/g, (_, n) => { S.down = +n; return ' '; });
+    t = t.replace(/\b(second|third|fourth)[\s-]*downs?\b/g, (_, n) => { S.down = { second: 2, third: 3, fourth: 4 }[n]; return ' '; });
+    t = t.replace(/\bred[\s-]*zone\b/g, () => { S.redzone = true; return ' '; });
+    const stop = new Set('a an the of all every each plays play by for in on with yards yard yds yd his their our and to from allowed show me find only any some'.split(' '));
+    S.words = t.split(/[^a-z0-9.'&-]+/).map(w => w.replace(/^[.'-]+|[.'-]+$/g, '')).filter(w => w && (w.length > 1 || /\d/.test(w)) && !stop.has(w)).map(w => this.stem(w));
+    return S;
+  }
+  facts(p, o) {
+    const sum = p.sum || {}, words = [], add = (...w) => w.forEach(x => { if (!x) return; x = String(x).toLowerCase(); words.push(x); if (x.includes('.')) x.split('.').forEach(y => { if (y.length > 1) words.push(y); }); });
+    String(p.text || '').toLowerCase().split(/[^a-z0-9.'&-]+/).forEach(w => add(w.replace(/^[.'-]+|[.'-]+$/g, '')));
+    String(sum.actors || '').toLowerCase().split(/[^a-z0-9.'&-]+/).forEach(w => add(w.replace(/^[.'-]+|[.'-]+$/g, '')));
+    (sum.def || []).forEach(d => { add(...String(d.label || '').toLowerCase().split(/\s+/)); if (d.isTag) add(...String(d.pre || '').toLowerCase().split(/\s+/)); });
+    const r = sum.result || '', ty = p.type || '';
+    const kind = o.pen ? 'penalty' : /^(Kickoff|Punt)$/.test(r) || /field goal|extra point|two-point/i.test(r + ' ' + ty) ? 'kick' : /^(Complete|Incomplete|Interception|Sack|Intentional grounding)$/.test(r) || o.type === 'pass' ? 'pass' : r === 'Rush' || o.type === 'rush' ? 'rush' : 'other';
+    if (kind === 'rush') add('rush', 'run', 'carry', 'ground');
+    if (kind === 'pass') add('pass', 'throw', 'dropback');
+    if (r === 'Complete') add('complete', 'completion', 'catch', 'reception');
+    if (r === 'Incomplete') add('incomplete', 'incompletion');
+    if (r === 'Sack') add('sack', 'sacked');
+    if (r === 'Interception') add('int', 'interception', 'pick', 'turnover');
+    if (/fumble/i.test(p.text || '')) add('fumble');
+    if (o.to) add('turnover', 'takeaway', 'giveaway');
+    if (o.td) add('td', 'touchdown', 'score');
+    if (o.pen || sum.penF) add('penalty', 'flag', ...String(sum.penF || '').toLowerCase().split(/\s+/));
+    if (kind === 'kick') add('kick', 'special', 'teams', ...r.toLowerCase().split(/\s+/), /field goal/i.test(r) ? 'fg' : '', /extra point/i.test(r) ? 'pat' : '');
+    const expl = (kind === 'rush' && o.y >= 12) || (kind === 'pass' && o.y >= 16);
+    if (expl) add('explosive', 'big', 'swing', 'chunk');
+    const dn = +((/^(\d)/.exec(p.down || '') || [])[1] || 0), sm = /^([A-Z&]+)\s+(\d+)$/.exec(p.spot || '');
+    const redzone = !!(sm && +sm[2] <= 20 && o.offAbbr && sm[1] !== o.offAbbr);
+    return { words, y: o.y, kind, td: !!o.td, fd: !!o.fd, dn, q: p.q, redzone, prevPen: !!o.prevPen, expl, pressure: (sum.def || []).some(d => /Pressure/.test(d.pre)) };
+  }
+  matchFacts(F, S) {
+    if (!S || S.question) return false;
+    if (S.minY != null && !(F.y >= S.minY)) return false;
+    if (S.down && F.dn !== S.down) return false;
+    if (S.qtr && F.q !== S.qtr) return false;
+    if (S.redzone && !F.redzone) return false;
+    if (S.firstDown && !F.fd) return false;
+    if (S.afterPen && !F.prevPen) return false;
+    return S.words.every(w => F.words.some(h => h === w || (w.length >= 2 && h.startsWith(w))));
+  }
+  playTitle(sum) {
+    const s = sum; if (!s) return 'Play';
+    const n = String(s.yds || '').replace(/ yds?$/, ''), v = parseInt(n.replace('−', '-'), 10);
+    const Y = () => isNaN(v) ? '' : v === 0 ? ' for no gain' : v < 0 ? ` for a loss of ${-v} yd${v === -1 ? '' : 's'}` : ` for ${v} yd${v === 1 ? '' : 's'}`;
+    const [a, b] = String(s.actors || '').split(' → ').map(x => (x || '').trim());
+    switch (s.result) {
+      case 'Complete': return `Pass to ${b || 'receiver'}${Y()}`;
+      case 'Incomplete': return b ? `Incomplete pass to ${b}` : 'Incomplete pass';
+      case 'Interception': return `Intercepted by ${(b || '').replace(/^picked by /, '') || 'the defense'}`;
+      case 'Rush': return `Rush by ${a}${Y()}`;
+      case 'Sack': return `${a} sacked${Y()}`;
+      case 'Penalty': return `${s.penF || 'Penalty'}${s.penW ? ' on ' + s.penW : ''}${s.penY ? ', ' + s.penY : ''}`;
+      case 'Kickoff': case 'Punt': return `${s.result}${a ? ' by ' + a : ''}${n ? ', ' + n + ' yds' : ''}`;
+    }
+    if (/^Field goal/.test(s.result)) return `${s.result}${n ? ' from ' + n + ' yds' : ''}`;
+    return s.result + (a ? ' by ' + a : '');
+  }
+  cardTags(c, F) {
+    const sum = c.sum || {}, out = [], seen = new Set(), T = (l) => { if (l && !seen.has(l.toLowerCase()) && l.length < 28) { seen.add(l.toLowerCase()); out.push(l); } };
+    const [a, b] = String(sum.actors || '').split(' → ').map(x => (x || '').replace(/^picked by /, '').trim());
+    if (F.td) T('TD');
+    if (F.kind === 'pass') { T(b); T(a); } else if (F.kind === 'rush' || F.kind === 'kick') T(a);
+    T({ rush: 'Rush', pass: sum.result === 'Sack' ? 'Sack' : 'Pass', penalty: 'Penalty', kick: /punt/i.test(sum.result) ? 'Punt' : /field goal/i.test(sum.result) ? 'FG' : /kickoff/i.test(sum.result) ? 'Kickoff' : 'Kick' }[F.kind] || '');
+    if (F.expl) T('Explosive');
+    if (F.fd && !F.td) T('1st down');
+    if (sum.result === 'Interception') T('INT'); else if (/fumble/i.test(c.text || '')) T('Fumble');
+    if (F.pressure) T('Pressure');
+    if (sum.penF && F.kind !== 'penalty') T('Penalty');
+    if (F.redzone) T('Red zone');
+    return out;
+  }
+  async searchAll(q) {
+    const S = this.searchSpec(q), key = q + '|' + (this.state.unit || 'off');
+    if (!S || S.question) { this.setState({ allRes: { key, list: [], loading: false } }); return; }
+    this.setState({ allRes: { key, list: [], loading: true } });
+    if (!this.state.sched) await this.loadSchedule();
+    const rows = ((this.state.sched && this.state.sched.rows) || []).filter(r => r.done);
+    this._games = this._games || {};
+    const list = [];
+    for (const r of rows) {
+      let G = this._games[r.id];
+      if (!G) { try { G = this._games[r.id] = await this.fetchGame(r.id); } catch (e) { continue; } }
+      const ab = {}; (G.teams || []).forEach(t => { ab[t.id] = t.abbr; });
+      const unit = this.state.unit || 'off', me = this.TEAM; let n = 0, prev = null;
+      for (const p of G.plays) {
+        const ok = unit === 'all' ? true : unit === 'off' ? !p.st && p.off === me : !p.st && p.off !== me;
+        if (!ok) continue; n++;
+        const s = p.sum || {}, y = parseInt(String(s.yds || '').replace('−', '-'), 10) || 0, pen = s.result === 'Penalty';
+        const type = /^(Complete|Incomplete|Interception|Sack)$/.test(s.result) ? 'pass' : s.result === 'Rush' ? 'rush' : '';
+        const F = this.facts(p, { y, type, pen, td: (s.flags || []).includes('Touchdown'), fd: (s.flags || []).includes('1st down'), to: s.result === 'Interception', prevPen: prev && prev.sum && prev.sum.result === 'Penalty', offAbbr: ab[p.off] });
+        prev = p;
+        if (!this.matchFacts(F, S)) continue;
+        const qn = p.q > 4 ? 'OT' : 'Q' + p.q;
+        list.push({ gid: r.id, key: p.id, y, kind: F.kind, title: this.playTitle(s), meta: `${r.at} ${r.oppAbbr} · Play ${String(n).padStart(2, '0')} · ${qn}${p.down ? ' · ' + p.down + (p.spot ? ' at ' + p.spot : '') : ''}` });
+      }
+    }
+    if (((this.state.allRes || {}).key) === key) this.setState({ allRes: { key, list, loading: false, games: new Set(list.map(x => x.gid)).size } });
+  }
+  setSearch(q) { this.setState({ q, panel: 'search', qFocus: false }, () => this.recenter()); }
+  recenter() { setTimeout(() => { this._rowV = 0; this.scrollRow(this.state.cur || 0); }, 60); }
+
   renderVals() {
+    const b = this.renderValsBase(), st = this.state, G = st.game;
+    const chain = b.chain || [], n = chain.length, ci = Math.min(st.cur || 0, Math.max(0, n - 1)), cc = chain[ci];
+    const analyzing = st.phase === 'analyzing' && !!st.src;
+    // ---- per-play facts from the timeline ticks ----
+    const ticks = {}; (b.tl || []).forEach(d => d.ticks.forEach(t => { ticks[t.i] = t; }));
+    const abById = {}; ((G && G.teams) || []).forEach(t => { abById[t.id] = t.abbr; });
+    const plays = {}; ((G && G.plays) || []).forEach(p => { plays[p.id] = p; });
+    const facts = chain.map((c, i) => { const t = ticks[i] || {}, p = plays[c.key] || { text: c.text, sum: c.sum, down: c.down, spot: c.spot, q: c.q, type: c.ptype }; const pt = ticks[i - 1]; return this.facts(p, { y: t._y || 0, type: t._type, pen: t._pen, td: t._td, to: t._to, fd: t._fd, prevPen: !!(pt && pt._pen), offAbbr: abById[p.off] }); });
+    // ---- search ----
+    const qText = st.q || '', S = this.searchSpec(qText), scope = st.scope || 'game';
+    const matchIdx = S && !S.question ? facts.map((F, i) => this.matchFacts(F, S) ? i : -1).filter(i => i >= 0) : [];
+    const matchSet = new Set(matchIdx), searching = !!S && !S.question;
+    if (scope === 'all' && S && (!st.allRes || st.allRes.key !== qText + '|' + (st.unit || 'off')) && this._allQ !== qText + '|' + (st.unit || 'off')) { this._allQ = qText + '|' + (st.unit || 'off'); clearTimeout(this._allTO); this._allTO = setTimeout(() => this.searchAll(qText), 250); }
+    const k = matchIdx.indexOf(ci), N = matchIdx.length;
+    const step = (dir) => { if (!N) return; let j; if (dir > 0) j = matchIdx.find(i => i > ci); else j = [...matchIdx].reverse().find(i => i < ci); if (j == null) j = dir > 0 ? matchIdx[0] : matchIdx[N - 1]; this.setCur(j, true, true); };
+    if (this._jumpKey) { const j = chain.findIndex(c => c.key === this._jumpKey); if (j >= 0) { this._jumpKey = null; if (j !== ci) setTimeout(() => this.setCur(j, true, true), 0); } }
+    const thumbOf = (c) => { const cl = c && this.findClip(c.key); return cl ? this.thumbUrl(cl) : ''; };
+    const qn = (q) => q > 4 ? 'OT' : 'Q' + q;
+    const metaOf = (c) => `Play ${c.num} · ${qn(c.q)} ${c.clock || ''}`.trim();
+    // ---- cards ----
+    const hasNav = searching && N > 0;
+    const cmts = st.comments || {}, curCm = cc ? (cmts[cc.key] || []) : [];
+    const cards = chain.map((c, i) => {
+      const F = facts[i], isCur = i === ci;
+      return { ...c, isCur, hasDown: !!c.down, spotTxt: c.spot ? 'at ' + c.spot : '', meta: metaOf(c), title: this.playTitle(c.sum),
+        desc: c.text || '', tags: this.cardTags(c, F).slice(0, 6).map(l => ({ label: l, pick: (e) => { e.stopPropagation(); this.setSearch(l); } })),
+        op: isCur ? '1' : '0.5', belowVis: isCur ? 'visible' : 'hidden', padR: isCur ? (hasNav ? '336px' : '152px') : '0px' };
+    });
+    // ---- timeline ----
+    const RUN = '#4fc27a', PASS = '#4f9fe8', TO = '#e8503a', FLAG = '#f2d24b', TRACK = '#3a3936';
+    const chipOf = (l) => { const L = String(l || ''); const map = { TD: ['TD', 'light'], FG: ['FG', 'light'], Punt: ['PUNT', 'grey'], INT: ['INT', 'red'], Fumble: ['FUM', 'red'], Downs: ['DOWNS', 'red'], Safety: ['SAFETY', 'red'], 'Missed FG': ['MISSED FG', 'grey'], Half: ['HALF', 'grey'], End: ['END', 'grey'] }; const m = map[L] || [L.toUpperCase().slice(0, 10), 'grey']; const tone = { light: ['#eceae6', '#161615'], red: ['#e8503a', '#eceae6'], grey: ['#5a5955', '#eceae6'] }[m[1]]; return { chip: m[0], chipBg: tone[0], chipFg: tone[1], hasChip: !!m[0] }; };
+    let lastQ = 0;
+    const drives = (b.tl || []).map((d, di) => {
+      const q0 = (d.ticks[0] && d.ticks[0].qn) || 0, qDiv = di > 0 && q0 > lastQ, lastT = d.ticks[d.ticks.length - 1]; const qLab = q0 > 4 ? 'OT' : 'Q' + q0; lastQ = Math.max(lastQ, (lastT && lastT.qn) || q0);
+      return { qDiv, qLab, num: d.num2, numColor: d.here ? '#eceae6' : '#a3a19c', ...chipOf(d.long), hasTeam: (st.unit || 'off') === 'all' && !!d.teamAb, team: d.teamAb, spot: d.spot || '', spotColor: d.plus ? '#eceae6' : '#8b8984', time: d.time && d.time !== '–' ? (d.spot ? ' · ' : '') + d.time : '',
+        plays: d.ticks.map(t => {
+          const on = t.i === ci, y = t._y || 0, col = t._type === 'pass' ? PASS : RUN;
+          let track = TRACK, f = { fL: '0px', fW: '10px', fTop: '32px', fH: '0px', fRad: '1px', fBg: 'transparent', fEdge: 'none' };
+          const up = (h, color, striped) => { h = Math.max(3, Math.round(h)); f = { ...f, fTop: (32 - h) + 'px', fH: h + 'px', fRad: h >= 32 ? '2px' : '1px', fBg: striped ? `repeating-linear-gradient(135deg, rgba(22,22,21,.55) 0 1.5px, transparent 1.5px 4.5px), ${color}` : color }; };
+          const dn = (h, color) => { h = Math.max(3, Math.min(12, Math.round(h))); f = { ...f, fTop: '33px', fH: h + 'px', fRad: '0 0 2px 2px', fBg: color }; };
+          if (t._to) { track = 'transparent'; f = { ...f, fTop: '0px', fH: '32px', fRad: '2px', fBg: TO }; }
+          else if (t._pen) { if (y > 0) up(Math.min(y, 10) / 10 * 32, FLAG); else if (y < 0) dn(Math.min(-y, 10) / 10 * 12, FLAG); else up(3, FLAG); }
+          else if (t._c && t._c.sum && /^(Kickoff|Punt|Field goal|Extra point|Two-point)/i.test(t._c.sum.result || '')) f = { ...f, fL: '4px', fW: '2px', fTop: '24px', fH: '8px', fRad: '0', fBg: '#5a5955' };
+          else if (y > 0) up(Math.min(y, 10) / 10 * 32, col, t._type === 'pass' ? y >= 16 : y >= 12);
+          else if (y < 0) dn(Math.min(-y, 10) / 10 * 12, col);
+          else f = { ...f, fTop: '26px', fH: '6px', fRad: '2px', fBg: TRACK, fEdge: 'inset 0 0 0 1.5px ' + col };
+          return { i: t.i, down: t.down, enter: t.enter, tip: t.tip, inDrive: String(t.inDrive).padStart(2, '0'), num: String((t._c && t._c.num) || '').padStart(2, '0'),
+            bg: on ? '#1c1c1a' : 'transparent', fg: on ? '#eceae6' : '#8b8984', op: searching && !matchSet.has(t.i) ? '0.25' : '1', isTd: !!t._td, isFd: !t._td && !!t._fd, mk: d.here ? '#eceae6' : '#a3a19c', track, ...f };
+        }) };
+    });
+    // ---- header ----
+    const T = (G && G.teams) || [], post = G && G.state === 'post';
+    const side = (t, o) => { if (!t) return {}; const R = t.recs || [], tot = (R.find(r => r.type === 'total') || R[0] || {}).s || t.record || '', cf = (R.find(r => r.type === 'vsconf') || {}).s; const lose = post && o && +t.score < +o.score; return { abbr: t.abbr, logo: t.logo, rank: t.rank && +t.rank <= 25 ? String(t.rank) : '', hasRank: !!(t.rank && +t.rank <= 25), rec: tot + (cf ? ` (${cf})` : ''), score: t.score, scoreColor: lose ? '#8b8984' : '#eceae6', nameColor: lose ? '#a3a19c' : '#eceae6' }; };
+    const gStatus = !G ? '' : G.state === 'post' ? 'Final' : G.state === 'in' ? (G.status || 'Live') : (G.status || '').replace(/^.* - /, '');
+    // ---- schedule ----
+    const curGid = this.gidOf(st.gameUrl), lib = st.library || [], pctTxt = (b.progressW || '0%');
+    const schedRows = ((st.sched && st.sched.rows) || []).map(r => { const L = lib.find(g => g.gid === r.id), isCur = r.id === curGid, scanning = isCur && analyzing, playable = r.done || r.live;
+      return { ...r, hasRank: !!r.rank, hasWL: r.done, wl: r.win ? 'W' : 'L', wlColor: r.win ? '#eceae6' : '#a3a19c', score: r.done || r.live ? r.score : r.time, scoreColor: r.done ? '#eceae6' : '#8b8984', rec: r.wlRec,
+        bg: isCur ? '#232321' : 'transparent', op: playable ? '1' : '0.5', cursor: playable ? 'pointer' : 'default', canUpload: playable && !L && !(isCur && this.file) && !scanning, scanning, pct: pctTxt,
+        open: () => { if (playable) this.openGame(r.id); }, upload: (e) => { const f = e.target.files && e.target.files[0]; e.target.value = ''; this.uploadFor(r.id, f); } }; });
+    // ---- results ----
+    const list = scope === 'all' ? ((st.allRes && st.allRes.list) || []).map(x => ({ title: x.title, meta: x.meta, hasThumb: false, thumb: '', bg: 'transparent', go: () => this.openGame(x.gid, x.key) }))
+      : matchIdx.map(i => { const c = chain[i], th = thumbOf(c); return { title: this.playTitle(c.sum), meta: metaOf(c) + (c.down ? ` · ${c.down}${c.spot ? ' at ' + c.spot : ''}` : ''), hasThumb: !!th, thumb: th, bg: i === ci ? '#232321' : 'transparent', go: () => this.setCur(i, true, true) }; });
+    const yList = scope === 'all' ? ((st.allRes && st.allRes.list) || []).map(x => ({ y: x.y, kind: x.kind })) : matchIdx.map(i => ({ y: facts[i].y, kind: facts[i].kind }));
+    const totY = yList.reduce((a, x) => a + (x.y || 0), 0), allRush = yList.length && yList.every(x => x.kind === 'rush');
+    const loadingAll = scope === 'all' && st.allRes && st.allRes.loading;
+    const resMsg = S && S.question ? 'Questions need the AI, which isn’t connected yet. Try a search like “Fletcher runs” or “3rd-down passes”.' : loadingAll ? 'Searching every game…' : S && !list.length ? 'No plays match. Try a player’s last name, a play type, or a tag.' : '';
+    // ---- popular + tries ----
+    const cnt = {}; chain.forEach((c, i) => { const F = facts[i], s = c.sum || {}; const [a, bb] = String(s.actors || '').split(' → ').map(x => (x || '').replace(/^picked by /, '').trim()); [F.kind === 'pass' ? bb : a].forEach(x => { if (x && x.length < 24 && F.kind !== 'penalty' && F.kind !== 'kick') cnt[x] = (cnt[x] || 0) + 1; }); });
+    const topP = Object.entries(cnt).sort((x, y) => y[1] - x[1]).slice(0, 3).map(x => x[0]);
+    const has = (fn) => facts.some(fn);
+    const popular = [...topP, has(F => F.expl) && 'Explosive', has(F => F.pressure) && 'Pressure', has(F => F.dn === 3) && '3rd down', has(F => F.redzone) && 'Red zone', has(F => F.words.includes('sack')) && 'Sack', has(F => F.kind === 'penalty' || F.words.includes('penalty')) && 'Penalty', has(F => F.td) && 'TD', has(F => F.words.includes('turnover')) && 'Turnover'].filter(Boolean).slice(0, 12).map(l => ({ label: l, pick: () => this.setSearch(l) }));
+    const rb = Object.entries(cnt).filter(([nm]) => chain.some((c, i) => facts[i].kind === 'rush' && String((c.sum || {}).actors || '').startsWith(nm))).sort((x, y) => y[1] - x[1])[0];
+    const last = rb ? rb[0].split(/[\s.]+/).filter(w => w.length > 2 && !/^(jr|sr|ii|iii)$/i.test(w)).pop() : '';
+    const tries = ['Every 3rd-down pass', last ? `${last} runs of 10+ yards` : 'Runs of 10+ yards', 'Plays right after a penalty', (st.unit === 'def' ? 'Every sack' : 'All sacks allowed')].map(l => ({ label: l, pick: () => this.setSearch(l) }));
+    // ---- comments panel ----
+    const cmt = cc ? { title: this.playTitle(cc.sum), meta: `${metaOf(cc)} · ${curCm.length} comment${curCm.length === 1 ? '' : 's'}`, thumb: thumbOf(cc), hasThumb: !!thumbOf(cc), none: !curCm.length, list: curCm.slice().reverse().map(m => ({ who: m.who, ago: this.ago(m.t), text: m.text })) } : { title: '', meta: '', thumb: '', hasThumb: false, none: true, list: [] };
+    const cardW = 'min(calc(100vw - 96px), clamp(480px, calc((100dvh - 422px) * 16 / 9), 672px))';
+    const panel = st.panel || null;
+    return {
+      ...b,
+      // header
+      hasScore: T.length === 2, noScore: T.length !== 2, away: side(T[0], T[1]), home: side(T[1], T[0]), gStatus, gDate: (G && G.dateShort) || '',
+      gameMsg: st.gameLoading ? 'Loading game…' : st.gameError || 'Pick a game from the schedule', gameMsgColor: st.gameError ? '#f08a6a' : '#8b8984',
+      isScanning: analyzing, scanPct: pctTxt, scanTip: b.statusSub || '',
+      toggleSched: () => { const o = !st.schedOpen; this.setState({ schedOpen: o }); if (o && !st.sched) this.loadSchedule(); },
+      schedOpen: !!st.schedOpen, schedBtnBg: st.schedOpen ? '#232321' : 'transparent', schedBtnBorder: st.schedOpen ? '#77756f' : '#3a3a37',
+      sched: st.sched || { name: 'Miami Hurricanes', sub: '', logo: 'https://a.espncdn.com/i/teamlogos/ncaa/500/' + this.TEAM + '.png' }, season: String(st.season || 2026), seasons: ['2026', '2025', '2024'], onSeason: (e) => this.loadSchedule(+e.target.value),
+      schedRows, schedEmpty: !schedRows.length, schedMsg: st.schedLoading ? 'Loading schedule…' : st.schedError || 'No games.',
+      stopProp: (e) => e.stopPropagation(),
+      // search box
+      q: qText, hasQText: !!qText, noQText: !qText, showChip: !!qText && !st.qFocus, showInput: !qText || !!st.qFocus,
+      chipCount: S && S.question ? 'question' : scope === 'all' ? (loadingAll ? '…' : `${list.length} play${list.length === 1 ? '' : 's'}`) : `${N} play${N === 1 ? '' : 's'}`,
+      searchBorder: st.qFocus ? '#77756f' : '#3a3a37',
+      searchRef: this.ref('search', el => { this.searchEl = el; if (el && this._focusSearch) { this._focusSearch = false; setTimeout(() => { el.focus(); el.select(); }, 0); } }),
+      focusSearch: () => { if (this.searchEl) this.searchEl.focus(); else { this._focusSearch = true; this.setState({ qFocus: true }); } if (st.panel !== 'search') this.setState({ panel: 'search' }, () => this.recenter()); },
+      editChip: (e) => { e.stopPropagation(); this._focusSearch = true; this.setState({ qFocus: true, panel: 'search' }); },
+      clearSearch: (e) => { if (e) { e.stopPropagation(); e.preventDefault(); } this.setState({ q: '', allRes: null }); },
+      onQ: (e) => this.setState({ q: e.target.value }),
+      onQFocus: () => { if (!st.qFocus || st.panel !== 'search') this.setState({ qFocus: true, panel: 'search' }, () => { if (st.panel !== 'search') this.recenter(); }); },
+      onQBlur: () => setTimeout(() => this.setState({ qFocus: false }), 120),
+      onQKey: (e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); this.setState({ qFocus: false }); if (N && !matchSet.has(ci)) this.setCur(matchIdx[0], true, true); } else if (e.key === 'Escape') { e.currentTarget.blur(); this.setState({ qFocus: false }); } },
+      // clip row
+      cards, cardW, cardHalf: `${cardW} / 2`, rowH: `calc(${cardW} * 9 / 16 + 101px)`, noPlays: !n,
+      emptyMsg: st.gameLoading ? 'Loading plays…' : st.gameError ? st.gameError : G ? 'No plays here yet.' : 'Pick a game from the schedule.',
+      hasNav, navTxt: k >= 0 ? `Match ${k + 1} of ${N}` : `${N} match${N === 1 ? '' : 'es'}`, navPrev: (e) => { e.stopPropagation(); step(-1); }, navNext: (e) => { e.stopPropagation(); step(1); },
+      cPillTxt: curCm.length ? `${curCm.length} comment${curCm.length === 1 ? '' : 's'}` : 'Comment', cPillBg: panel === 'comments' ? '#2a2a28' : '#1c1c1a',
+      openComments: (e) => { e.stopPropagation(); this.setState({ panel: panel === 'comments' ? null : 'comments' }, () => this.recenter()); },
+      // panel
+      panelOpen: !!panel, isSearchPanel: panel === 'search', isCommentPanel: panel === 'comments', panelTitle: panel === 'comments' ? 'Comments' : 'Search',
+      closePanel: () => this.setState({ panel: null }, () => this.recenter()),
+      scopeTabs: [['game', 'This game'], ['all', 'All games']].map(([key, label]) => ({ label, bg: scope === key ? '#3a3a37' : 'transparent', fg: scope === key ? '#eceae6' : '#a3a19c', fw: scope === key ? '700' : '400', pick: () => this.setState({ scope: key }) })),
+      showSuggest: !qText, showResults: !!qText, popular, tries,
+      resTitle: S && S.question ? 'Question' : `${list.length} play${list.length === 1 ? '' : 's'}` + (scope === 'all' && st.allRes && st.allRes.games ? ` in ${st.allRes.games} game${st.allRes.games === 1 ? '' : 's'}` : ''),
+      resSub: S && !S.question && list.length ? `${totY} yds · ${(totY / list.length).toFixed(1)} per ${allRush ? 'carry' : 'play'}` : '',
+      results: list, hasResMsg: !!resMsg, resMsg,
+      cmt, draft: st.draft || '', onDraft: (e) => this.setState({ draft: e.target.value }), onDraftKey: (e) => { if (e.key === 'Enter' && cc) { e.preventDefault(); this.addComment(cc.key, st.draft); } },
+      // tabs + timeline
+      unitTabs2: [['all', 'All'], ['off', 'Offense'], ['def', 'Defense']].map(([key, label]) => { const on = (st.unit || 'off') === key; return { label, bg: on ? '#1c1c1a' : 'transparent', fg: on ? '#eceae6' : '#8b8984', fw: on ? '700' : '400', pick: () => { if (on) return; this._wantKey = this._ccKey; this.setState({ unit: key, cur: 0 }); } }; }),
+      drives,
+      openTitle: b.openTitle
+    };
+  }
+  renderValsBase() {
     const st = this.state, speed = Number(this.props.analysisSpeed ?? 8), G = st.game;
     const teamById = {}; ((G && G.teams) || []).forEach(t => { teamById[t.id] = t; });
     const tot = this.scanTotal || st.duration, pct = tot ? Math.min(100, Math.round(st.curT / tot * 100)) : 0;
@@ -2111,7 +2449,7 @@ class Component extends DCLogic {
         const _key = it.key;
         const tk = c ? c.id + '@' + c.snap.toFixed(1) : '';
         return {
-          n: it.n, clock: p ? p.clock : (c ? this.fmt(c.start) : ''),
+          n: it.n, q: p ? p.q : 0, text: p ? p.text : '', sum: p ? p.sum : null, ptype: p ? p.type : '', pst: !!(p && p.st), clock: p ? p.clock : (c ? this.fmt(c.start) : ''),
           hasTeam: !!t, team: t ? t.abbr : '', teamColor: t ? t.color : 'transparent',
           num: String(it.n).padStart(2, '0'), showPlayRow: !(p && p.sum && p.sum.result === 'Penalty' && p.sum.penF), pen: p && p.sum ? p.sum.pen || '' : '', penF: p && p.sum ? p.sum.penF || '' : '', penW: p && p.sum ? p.sum.penW || '' : '', penY: p && p.sum && p.sum.penY ? (this.penOnOffense(p, t) ? '−' : '+') + p.sum.penY : '', hasPenY: !!(p && p.sum && p.sum.penY), hasPen: !!(p && p.sum && p.sum.pen), meta: p ? p.dd : '', down: p ? p.down || '' : '', spot: p ? p.spot || '' : '', hasSpot: !!(p && p.spot), segs: p && p.sum ? this.playLine(p.sum, p.sum.result === 'Rush' && !p.st ? this.qbOf(p) : '') : [{ label: 'Play', pre: '', hasPre: false }], defSegs: p && p.sum && p.sum.def ? p.sum.def : [], hasDef: !!(p && p.sum && p.sum.def && p.sum.def.length),
           result: p && p.sum ? p.sum.result : 'Play', yds: p && p.sum ? p.sum.yds : '',
@@ -2227,7 +2565,7 @@ class Component extends DCLogic {
             const nDr = new Set(chainArr.map(c => c._dr)).size, gapPx = n > 80 ? 4 : 8, tickW = n ? (window.innerWidth - 64 - gapPx * nDr) / n : 40, showNums = true;
             const spotCode = (() => { const tms = (G && G.teams) || [], codes = {}; ((G && G.drives) || []).forEach(x => { const m = /^([A-Z&]+)\s*\d+/.exec(x.from || ''); if (m) (codes[x.team] = codes[x.team] || {})[m[1]] = 1; }); const map = {}; tms.forEach(tm => { map[tm.abbr] = tm.id; }); const all = new Set(); ((G && G.drives) || []).forEach(x => { const m = /^([A-Z&]+)/.exec(x.from || ''); if (m) all.add(m[1]); }); const known = [...all].filter(k => map[k]); [...all].filter(k => !map[k]).forEach(k => { if (known.length === 1 && tms.length === 2) map[k] = tms.find(tm => tm.id !== map[known[0]]).id; }); return map; })();
             const spotOf = (D, C) => { const m = /^([A-Z&]+)?\s*(\d+)/.exec(D.sFrom || D.from || ''); if (!m) return { txt: '', plus: false }; const n = +m[2]; if (n === 50 || !m[1]) return { txt: String(n), plus: false }; const own = spotCode[m[1]]; const tmsL = (G && G.teams) || [], abbr = (D.team != null ? D.team : C && C.team); const dtm = tmsL.find(x => x.abbr === abbr || String(x.id) === String(abbr) || String(x.id) === String(D.teamId)); const dt = dtm ? dtm.id : null; const same = own != null && dt != null && String(own) === String(dt); const plus = own != null && dt != null && !same; const tm = ((G && G.teams) || []).find(x => x.id === own); return { txt: (tm ? tm.abbr : m[1]) + ' ' + n, plus, minus: same }; };
-            const tl = []; chainArr.forEach((c, i) => { let d = tl[tl.length - 1]; if (!d || d.key !== c._dr) { const D = c._drv; d = { key: c._dr, ...(sp => ({ spot: sp.txt, spotD: sp.txt ? 'inline' : 'none', spotColor: sp.plus ? '#5cc27a' : sp.minus ? '#e0604a' : (c._dr === (cc && cc._dr) ? '#cfcdc8' : '#5a5955') }))(spotOf(D, c)), color: c.teamColor || '#3a3a37', num: String(D.tNum), short: (r => /touchdown/i.test(r) ? 'TD' : /missed|no good|blocked fg/i.test(r) ? 'Missed FG' : /field goal|^fg/i.test(r) ? 'FG' : /punt/i.test(r) ? 'Punt' : /downs/i.test(r) ? 'Downs' : /intercept/i.test(r) ? 'INT' : /fumble/i.test(r) ? 'Fumble' : /safety/i.test(r) ? 'Safety' : /half/i.test(r) ? 'Half' : /end of game|game/i.test(r) ? 'End' : r)(D.result || ''), shortColor: c._dr === (cc && cc._dr) ? D.resultColor : '#77756f', numColor: c._dr === (cc && cc._dr) ? '#eceae6' : '#5a5955', statColor: c._dr === (cc && cc._dr) ? '#cfcdc8' : '#77756f', time: D.sTime || '–', num2: String(D.tNum).padStart(2, '0'), long: (r => /touchdown/i.test(r) ? 'TD' : /missed|no good|blocked fg/i.test(r) ? 'Missed FG' : /field goal|^fg/i.test(r) ? 'FG' : /punt/i.test(r) ? 'Punt' : /downs/i.test(r) ? 'Downs' : /intercept/i.test(r) ? 'INT' : /fumble/i.test(r) ? 'Fumble' : /safety/i.test(r) ? 'Safety' : /half/i.test(r) ? 'Half' : /end of game|game/i.test(r) ? 'End' : r)(D.result || ''), plays: D.sPlays ? `${D.sPlays} play${D.sPlays === '1' ? '' : 's'}` : '–', info: [D.sPlays && `${D.sPlays} play${D.sPlays === '1' ? '' : 's'}`, D.sTime, D.sFrom && D.sTo && `${D.sFrom} → ${D.sTo}`].filter(Boolean).join(' · '), here: c._dr === (cc && cc._dr), stripBg: c._dr === (cc && cc._dr) ? '#232321' : '#1c1c1a', label: 'Series ' + D.tNum, stats: `${D.sPlays} play${D.sPlays === '1' ? '' : 's'} · ${D.sYds} yds`, time: D.sTime, result: D.result, resultColor: D.resultColor, full: `${c.team} series ${D.tNum} – ${D.sPlays} plays for ${D.sYds} yds ${D.result}`, teamAb: ((G && G.teams || []).find(x => x.id === D.teamId) || {}).abbr || '', half: (D.q || 1) <= 2 ? 1 : (D.q || 1) <= 4 ? 2 : 3, isDef: D.teamId != null && D.teamId !== this.myTeamId(), ticks: [], n: 0, sep: tl.length ? '1px solid #3a3a37' : 'none', sepPad: tl.length ? gapPx + 'px' : '0' }; tl.push(d); }
+            const tl = []; chainArr.forEach((c, i) => { let d = tl[tl.length - 1]; if (!d || d.key !== c._dr) { const D = c._drv; d = { key: c._dr, ...(sp => ({ spot: sp.txt, spotD: sp.txt ? 'inline' : 'none', plus: !!sp.plus, spotColor: sp.plus ? '#5cc27a' : sp.minus ? '#e0604a' : (c._dr === (cc && cc._dr) ? '#cfcdc8' : '#5a5955') }))(spotOf(D, c)), color: c.teamColor || '#3a3a37', num: String(D.tNum), short: (r => /touchdown/i.test(r) ? 'TD' : /missed|no good|blocked fg/i.test(r) ? 'Missed FG' : /field goal|^fg/i.test(r) ? 'FG' : /punt/i.test(r) ? 'Punt' : /downs/i.test(r) ? 'Downs' : /intercept/i.test(r) ? 'INT' : /fumble/i.test(r) ? 'Fumble' : /safety/i.test(r) ? 'Safety' : /half/i.test(r) ? 'Half' : /end of game|game/i.test(r) ? 'End' : r)(D.result || ''), shortColor: c._dr === (cc && cc._dr) ? D.resultColor : '#77756f', numColor: c._dr === (cc && cc._dr) ? '#eceae6' : '#5a5955', statColor: c._dr === (cc && cc._dr) ? '#cfcdc8' : '#77756f', time: D.sTime || '–', num2: String(D.tNum).padStart(2, '0'), long: (r => /touchdown/i.test(r) ? 'TD' : /missed|no good|blocked fg/i.test(r) ? 'Missed FG' : /field goal|^fg/i.test(r) ? 'FG' : /punt/i.test(r) ? 'Punt' : /downs/i.test(r) ? 'Downs' : /intercept/i.test(r) ? 'INT' : /fumble/i.test(r) ? 'Fumble' : /safety/i.test(r) ? 'Safety' : /half/i.test(r) ? 'Half' : /end of game|game/i.test(r) ? 'End' : r)(D.result || ''), plays: D.sPlays ? `${D.sPlays} play${D.sPlays === '1' ? '' : 's'}` : '–', info: [D.sPlays && `${D.sPlays} play${D.sPlays === '1' ? '' : 's'}`, D.sTime, D.sFrom && D.sTo && `${D.sFrom} → ${D.sTo}`].filter(Boolean).join(' · '), here: c._dr === (cc && cc._dr), stripBg: c._dr === (cc && cc._dr) ? '#232321' : '#1c1c1a', label: 'Series ' + D.tNum, stats: `${D.sPlays} play${D.sPlays === '1' ? '' : 's'} · ${D.sYds} yds`, time: D.sTime, result: D.result, resultColor: D.resultColor, full: `${c.team} series ${D.tNum} – ${D.sPlays} plays for ${D.sYds} yds ${D.result}`, teamAb: ((G && G.teams || []).find(x => x.id === D.teamId) || {}).abbr || '', half: (D.q || 1) <= 2 ? 1 : (D.q || 1) <= 4 ? 2 : 3, isDef: D.teamId != null && D.teamId !== this.myTeamId(), ticks: [], n: 0, sep: tl.length ? '1px solid #3a3a37' : 'none', sepPad: tl.length ? gapPx + 'px' : '0' }; tl.push(d); }
               d.n++;
               const y = yn(c), on = i === ci, gr = grade(c, y), s = [c.text, c.detail, c.result, ...(c.segs || []).map(x => x.label), ...(c.outTags || []).map(f => f.label)].filter(x => typeof x === 'string').join(' '), nx = chainArr[i + 1];
               const pen = /^\s*Penalty/i.test(s) || (c.hasPen && !c.showPlayRow), type = /punt/i.test(s) ? 'punt' : /field goal|kickoff|extra point|\bFG\b|\bPAT\b/i.test(s) ? 'kick' : /pass|sack|scramble|intercept|incomplete/i.test(s) ? 'pass' : 'rush';
@@ -2241,7 +2579,7 @@ class Component extends DCLogic {
               const W = this.wpTable(), wv = W.at[c.key], wp0 = W.prev[c.key], dW = wv != null && wp0 != null ? wv - wp0 : null, wTip = dW != null ? ` · Win ${Math.round(wv * 100)}% (${dW >= 0 ? '+' : ''}${Math.round(dW * 100)})` : '';
               const K = this.keyScore(c, { y, td, to, fd, pen, dn, s, type }), key = K.key, kc = K.good ? '#ffffff' : '#e0604a';
               const col = fgm || (/extra point|kick attempt|\bPAT\b/i.test(s) && !/kickoff/i.test(s)) ? '#a07ae8' : pen ? '#e3c34a' : type === 'rush' ? '#5cc27a' : type === 'pass' ? '#4a8fe0' : '#5a5955', ico = td ? '★' : to ? '✕' : fd ? '▲' : '';
-              d.hasWp = W.has; d.ticks.push({ i, flagD: this.auditFlags && this.auditFlags[c.key || c.id] ? 'block' : 'none', flagWhy: (this.auditFlags && (this.auditFlags[c.key || c.id] || []).join(' · ')) || '', qn: (() => { const m = this._qMap || (this._qMap = {}); if (!m._g || m._g !== this.state.game) { for (const k in m) delete m[k]; m._g = this.state.game; ((this.state.game && this.state.game.plays) || []).forEach(p => m[p.id] = p.q); } return m[c.key || c.id] || 0; })(), ...this.wpGeom(wv, wp0), numVis: showNums || on || key ? 'visible' : 'hidden', inDrive: d.ticks.length + 1, total: String(c.num || '').replace(/^0+(?=\d)/, ''), hUp: bk.up + 'px', hDn: (bk.dn || 0) + 'px', penUp: penUp + 'px', penDn: penDn + 'px', penUpD: penUp ? 'block' : 'none', penDnD: penDn ? 'block' : 'none',  line: col, rad: '1px', bw: '8px', fill: bk.empty ? 'transparent' : col, edge: bk.empty ? 'inset 0 0 0 1.5px ' + col : 'none', base: '#2e2e2b', ico, star: td ? '★' : '', toD: to && !c.tod ? 'block' : 'none', todD: c.tod ? 'block' : 'none', sackD: /sack/i.test(s) && !to ? 'block' : 'none', chk: !td && fd ? 'block' : 'none', icoColor: td ? '#7ee09a' : to ? '#e0604a' : '#cfcdc8', mark: on ? 'visible' : 'hidden', bg: on ? '#33332f' : 'transparent', fg: on ? '#eceae6' : c.hasClip ? '#77756f' : '#4a4945', fg2: key ? kc : on ? '#ffffff' : '#77756f', ring: key ? 'inset 0 0 0 1px ' + kc : 'none', tip: `#${c.num} · ${c.down || ''} · ${(c.segs || []).map(x => (x.pre ? x.pre + ' ' : '') + x.label).join(' ')} · ${pen ? 'Penalty' : type} · ${bk.k}${pY ? ' + penalty ' + (pY > 0 ? '+' : '') + pY : ''}${gr.label ? ' · ' + gr.label : ''}${key ? ' · Key play' : ''}${wTip}`, down: (e) => { e.preventDefault(); this.tlDrag = true; this._dragMoved = false; this.setCur(i, false, true); }, enter: () => { if (this.tlDrag) { this._dragMoved = true; this.setCur(i, false, true); } } }); });
+              d.hasWp = W.has; d.ticks.push({ _c: c, _y: y, _type: type, _pen: pen, _td: td, _to: to, _fd: fd, _pY: pY, _kick: !!fgm || /extra point|kick attempt|\bPAT\b/i.test(s) || type === 'punt' || type === 'kick', _s: s, i, flagD: this.auditFlags && this.auditFlags[c.key || c.id] ? 'block' : 'none', flagWhy: (this.auditFlags && (this.auditFlags[c.key || c.id] || []).join(' · ')) || '', qn: (() => { const m = this._qMap || (this._qMap = {}); if (!m._g || m._g !== this.state.game) { for (const k in m) delete m[k]; m._g = this.state.game; ((this.state.game && this.state.game.plays) || []).forEach(p => m[p.id] = p.q); } return m[c.key || c.id] || 0; })(), ...this.wpGeom(wv, wp0), numVis: showNums || on || key ? 'visible' : 'hidden', inDrive: d.ticks.length + 1, total: String(c.num || '').replace(/^0+(?=\d)/, ''), hUp: bk.up + 'px', hDn: (bk.dn || 0) + 'px', penUp: penUp + 'px', penDn: penDn + 'px', penUpD: penUp ? 'block' : 'none', penDnD: penDn ? 'block' : 'none',  line: col, rad: '1px', bw: '8px', fill: bk.empty ? 'transparent' : col, edge: bk.empty ? 'inset 0 0 0 1.5px ' + col : 'none', base: '#2e2e2b', ico, star: td ? '★' : '', toD: to && !c.tod ? 'block' : 'none', todD: c.tod ? 'block' : 'none', sackD: /sack/i.test(s) && !to ? 'block' : 'none', chk: !td && fd ? 'block' : 'none', icoColor: td ? '#7ee09a' : to ? '#e0604a' : '#cfcdc8', mark: on ? 'visible' : 'hidden', bg: on ? '#33332f' : 'transparent', fg: on ? '#eceae6' : c.hasClip ? '#77756f' : '#4a4945', fg2: key ? kc : on ? '#ffffff' : '#77756f', ring: key ? 'inset 0 0 0 1px ' + kc : 'none', tip: `#${c.num} · ${c.down || ''} · ${(c.segs || []).map(x => (x.pre ? x.pre + ' ' : '') + x.label).join(' ')} · ${pen ? 'Penalty' : type} · ${bk.k}${pY ? ' + penalty ' + (pY > 0 ? '+' : '') + pY : ''}${gr.label ? ' · ' + gr.label : ''}${key ? ' · Key play' : ''}${wTip}`, down: (e) => { e.preventDefault(); this.tlDrag = true; this._dragMoved = false; this.setCur(i, false, true); }, enter: () => { if (this.tlDrag) { this._dragMoved = true; this.setCur(i, false, true); } } }); });
             { let pq = null; tl.forEach(d => { d.ticks.forEach(t => { const st0 = t.qn !== pq; t.qLab = st0 && t.qn ? (t.qn <= 4 ? 'Q' + t.qn : 'OT' + (t.qn - 4)) : ''; t.qD = t.qLab ? 'block' : 'none'; t.qPad = st0 && pq != null ? '6px' : '0px'; t.qExt = '0px'; pq = t.qn; }); const lt = d.ticks[d.ticks.length - 1]; if (lt) lt.qExt = '-' + gapPx + 'px'; }); }
             const allMode = st.unit === 'all';
             tl.forEach(d => { if (allMode && d.isDef) d.stripBg = d.here ? '#30302d' : '#282826'; });
