@@ -1301,7 +1301,7 @@ class Component extends DCLogic {
   async runBug() {
     if (!this.state.game || !this.done || this.bugBusy) return;
     this.bug = this.bug || {}; this.bugSnap = this.bugSnap || {}; this.bugRun = this.bugRun || 1;
-    const run = this.bugRun; this.bugBusy = true;
+    const run = this.bugRun; this.bugBusy = true; this.setState({ checking: true });
     const ck = this.fileKey + '|bug2';
     try {
       const saved = await this.cacheGet(ck);
@@ -1382,7 +1382,7 @@ class Component extends DCLogic {
       await this.cachePut(ck, { v: 12, bug: this.bug, snap: this.bugSnap, complete: true, flag: this.flagSnap, flagM: this.flagM, flagDone: true, fix: this.snapFix, fixDone: 17, kick: this.kickSnap, tabM: this.tabM, kickDone: 2, otDone: 1, sb: this.sbSnap, sbLong: this.sbLong, sbBad: this.sbBad, sbDone: 1 });
       this.redetect(); this.setState({ bugMsg: '' });
     } catch (e) { console.warn('scoreboard', e); this._bugErr = 'Scan stopped: ' + e.message; }
-    finally { this.bugBusy = false; if (run === this.bugRun) this.releaseThumbs(); if (run === this.bugRun) { const err = this._bugErr; this._bugErr = null; this.setState({ bugMsg: err || '' }); if (!err && this.state.game && this.state.clips.length) this.audit().catch(e => { console.warn('audit', e); this.setState({ bugMsg: 'Self-check failed: ' + e.message }); }); } }
+    finally { this.bugBusy = false; this.setState({ checking: false }); if (run === this.bugRun) this.releaseThumbs(); if (run === this.bugRun) { const err = this._bugErr; this._bugErr = null; this.setState({ bugMsg: err || '' }); if (!err && this.state.game && this.state.clips.length) this.audit().catch(e => { console.warn('audit', e); this.setState({ bugMsg: 'Self-check failed: ' + e.message }); }); } }
   }
   // last camera cut in the lead-in window → start just after it (keeps replays/graphics out of the pre-roll)
   cutBefore(t, lead) { const S = this.samples || []; let lo = 0, hi = S.length; while (lo < hi) { const m = (lo + hi) >> 1; if (S[m].t < t - lead) lo = m + 1; else hi = m; } let c = -1; const gAvg = (a, b) => { const w = S.filter(s => s.t >= a && s.t <= b); return w.length ? w.reduce((x, s) => x + s.g, 0) / w.length : null; };
@@ -2466,7 +2466,7 @@ class Component extends DCLogic {
       // header
       hasScore: T.length === 2, noScore: T.length !== 2, away: side(T[0], T[1]), home: side(T[1], T[0]), gStatus, gDate: (G && G.dateShort) || '',
       gameMsg: st.gameLoading ? 'Loading game…' : st.gameError || 'Pick a game from the schedule', gameMsgColor: st.gameError ? '#f08a6a' : '#8b8984',
-      ...(() => { const bm = !analyzing && !st.importing && st.bugMsg ? String(st.bugMsg) : '', fr = /(\d+)\s*\/\s*(\d+)/.exec(bm), bp = fr ? Math.round(+fr[1] / +fr[2] * 100) + '%' : /(\d+)%/.test(bm) ? /(\d+)%/.exec(bm)[1] + '%' : '';
+      ...(() => { const bm = !analyzing && !st.importing && (st.bugMsg || st.checking) ? String(st.bugMsg || 'Checking clips against the scoreboard') : '', fr = /(\d+)\s*\/\s*(\d+)/.exec(bm), bp = fr ? Math.round(+fr[1] / +fr[2] * 100) + '%' : /(\d+)%/.test(bm) ? /(\d+)%/.exec(bm)[1] + '%' : '';
         return { showProg: analyzing || !!st.importing || !!bm, progLabel: st.importing ? 'Opening video…' : bm ? bm.replace(/\s*·\s*\d+\s*\/\s*\d+\s*$/, '').replace(/\s*·\s*\d+%.*$/, '') : 'Finding plays' + (this.etaMin && this.rateS ? ` · ~${this.etaMin} min left` : ''), progPct: st.importing ? '' : bm ? bp : pctTxt, progW: st.importing ? '4%' : bm ? (bp || '50%') : pctTxt,
           showReview: false, reviewTxt: `${st.auditN} to review`, nextFlag: b.nextFlag }; })(),
       scanTip: (b.statusSub || 'Reading the video') + '. Keep this tab open.',
