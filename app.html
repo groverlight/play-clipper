@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play Clipper</title>
-<meta name="pc-build" content="1795718073">
+<meta name="pc-build" content="1795723033">
 <script src="./vendor/react.production.min.js"></script>
 <script src="./vendor/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
@@ -451,7 +451,7 @@ class Component extends DCLogic {
       const plays = drives.flatMap((d, di) => (d.plays || []).map(p => ({ ...p, _drive: di })))
         .filter(p => p.wallclock && !skip.test((p.type && p.type.text) || ''))
         .map(p => {
-          p = { ...p, text: this.dropOverturned(p.text || '') };
+          const tdBack = this.tdBack(p.text || ''); p = { ...p, text: this.dropOverturned(p.text || '') };
           const snapClock = (p.text.match(/^\((\d+:\d+)\)/) || [])[1];
           const st = p.start || {};
           const offP = (p.teamParticipants || []).find(t => t.type === 'offense');
@@ -464,7 +464,7 @@ class Component extends DCLogic {
             tm, drive: p._drive,
             id: 'g' + p.id, wp: wpm[String(p.id)] ?? null, hs: p.homeScore, as: p.awayScore, w: Date.parse(p.wallclock) / 1000, q: p.period ? p.period.number : 0,
             clock: (snapClock || (p.clock && p.clock.displayValue) || '').replace(/^0(\d:)/, '$1'), snapClk: !!snapClock, clkEnd: !snapClock && (/\d+ Yd (Run|Pass|Field Goal|.*Return)/i.test(p.text) || (/kickoff/i.test(p.text) && !/touchback/i.test(p.text))),
-            text: this.cleanText(p.text), sum: this.parsePlay(p.text, type),
+            text: this.cleanText(p.text), sum: (sm => (tdBack && sm.flags.push('TD called back'), sm))(this.parsePlay(p.text, type)), tdBack,
             type, off, st: stRe.test(type) || stRe.test(p.text),
             dd: st.down > 0 && st.downDistanceText ? st.downDistanceText : '',
             down: st.down > 0 ? (st.shortDownDistanceText || (st.downDistanceText || '').split(' at ')[0]) : '',
@@ -490,6 +490,9 @@ class Component extends DCLogic {
     return { v: 27, gid: String(gid), state: (comp && comp.status && comp.status.type && comp.status.type.state) || '', dateShort: comp && comp.date ? new Date(comp.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '', homeId: teams[1] ? teams[1].id : '', title, venue: (j.gameInfo && j.gameInfo.venue && j.gameInfo.venue.fullName) || '', city: (() => { const a = j.gameInfo && j.gameInfo.venue && j.gameInfo.venue.address; return a ? [a.city, a.state].filter(Boolean).join(', ') : ''; })(), status: (comp && comp.status && comp.status.type && (comp.status.type.shortDetail || comp.status.type.detail)) || '', net: (comp && comp.broadcasts && comp.broadcasts[0] && ((comp.broadcasts[0].media && comp.broadcasts[0].media.shortName) || comp.broadcasts[0].type && comp.broadcasts[0].type.shortName)) || '', date: dt, plays, teams, drives: driveInfo };
   }
   // review overturned → ESPN appends the reversed call "(Original Play: … sacked … TOUCHDOWN …)"; it never happened, so drop it before anything reads the text
+  // a touchdown that didn't count: "TOUCHDOWN nullified by penalty … NO PLAY", or a TD call overturned on review
+  hasTD(t) { t = String(t || ''); return /touchdown/i.test(t) && !/touchdown nullified/i.test(t) && !/\bNO PLAY\b/.test(t); }
+  tdBack(t) { t = String(t || ''); return /touchdown nullified/i.test(t) || (/TOUCHDOWN/i.test(t) && /\bNO PLAY\b/.test(t)) || (/OVERTURNED|REVERSED/i.test(t) && /\(Original Play:[\s\S]*TOUCHDOWN/i.test(t) && !/TOUCHDOWN/i.test(this.dropOverturned(t))); }
   dropOverturned(t) { return /OVERTURNED|REVERSED/i.test(t) ? t.replace(/\s*\(Original Play:[\s\S]*$/i, '') : t; }
   cleanText(raw) {
     let t = String(raw || '').replace(/^\(\d+:\d+\)\s*/, '').replace(/#\d+\s*/g, '').trim();
@@ -569,7 +572,7 @@ class Component extends DCLogic {
     if (!r) { r = { result: type || 'Play', yds: '', actors: '', d: main.length > 90 ? main.slice(0, 88) + '…' : main }; useTackle = false; }
     if (/Sack/i.test(type) && r.result !== 'Sack') { r = { result: 'Intentional grounding', yds: '', actors: r.actors.split(' → ')[0], d: '' }; useTackle = false; extra.length = 0; }
     const flags = [];
-    if (/TOUCHDOWN/i.test(t) || /Touchdown/i.test(type)) flags.push('Touchdown');
+    if (this.hasTD(t) || /Touchdown/i.test(type)) flags.push('Touchdown');
     if (/1ST DOWN/.test(t) && !noPlay && !flags.length) flags.push('1st down');
     if (/fumble/i.test(main)) flags.push('Fumble');
     if (pen && noPlay) {
@@ -2420,13 +2423,16 @@ class Component extends DCLogic {
     t = t.replace(/\b([234])(?:nd|rd|th)[\s-]*(?:and|&)?[\s-]*downs?\b/g, (_, n) => { S.down = +n; return ' '; });
     t = t.replace(/\b(second|third|fourth)[\s-]*downs?\b/g, (_, n) => { S.down = { second: 2, third: 3, fourth: 4 }[n]; return ' '; });
     t = t.replace(/\bred[\s-]*zone\b/g, () => { S.redzone = true; return ' '; });
+    t = t.replace(/\b(?:tds?|touchdowns?)\s+(?:called back|nullified|wiped out|taken away|overturned|negated)\b|\b(?:called back|nullified|negated) (?:tds?|touchdowns?)\b/g, ' tdback ');
     const stop = new Set('a an the of all every each plays play by for in on with yards yard yds yd his their our and to from allowed show me find only any some'.split(' '));
     S.words = t.split(/[^a-z0-9.'&-]+/).map(w => w.replace(/^[.'-]+|[.'-]+$/g, '')).filter(w => w && (w.length > 1 || /\d/.test(w)) && !stop.has(w)).map(w => this.stem(w));
     return S;
   }
   facts(p, o) {
     const sum = p.sum || {}, words = [], add = (...w) => w.forEach(x => { if (!x) return; x = String(x).toLowerCase(); words.push(x); if (x.includes('.')) x.split('.').forEach(y => { if (y.length > 1) words.push(y); }); });
-    String(p.text || '').toLowerCase().split(/[^a-z0-9.'&-]+/).forEach(w => add(w.replace(/^[.'-]+|[.'-]+$/g, '')));
+    const back = (sum.flags || []).includes('TD called back');
+    String(p.text || '').replace(back ? /touchdown/ig : /$^/, '').toLowerCase().split(/[^a-z0-9.'&-]+/).forEach(w => add(w.replace(/^[.'-]+|[.'-]+$/g, '')));
+    if (back) add('tdback', 'called', 'back', 'nullified', 'overturned');
     String(sum.actors || '').toLowerCase().split(/[^a-z0-9.'&-]+/).forEach(w => add(w.replace(/^[.'-]+|[.'-]+$/g, '')));
     (sum.def || []).forEach(d => { add(...String(d.label || '').toLowerCase().split(/\s+/)); if (d.isTag) add(...String(d.pre || '').toLowerCase().split(/\s+/)); });
     const r = sum.result || '', ty = p.type || '';
@@ -2479,6 +2485,7 @@ class Component extends DCLogic {
     const sum = c.sum || {}, out = [], seen = new Set(), T = (l) => { if (l && !seen.has(l.toLowerCase()) && l.length < 28) { seen.add(l.toLowerCase()); out.push(l); } };
     const [a, b] = String(sum.actors || '').split(' → ').map(x => (x || '').replace(/^picked by /, '').trim());
     if (F.td) T('TD');
+    if ((sum.flags || []).includes('TD called back')) T('TD called back');
     if (F.kind === 'pass') { T(b); T(a); } else if (F.kind === 'rush' || F.kind === 'kick') T(a);
     T({ rush: 'Rush', pass: sum.result === 'Sack' ? 'Sack' : 'Pass', penalty: 'Penalty', kick: /punt/i.test(sum.result) ? 'Punt' : /field goal/i.test(sum.result) ? 'FG' : /kickoff/i.test(sum.result) ? 'Kickoff' : 'Kick' }[F.kind] || '');
     if (F.expl) T('Explosive');
@@ -2830,7 +2837,7 @@ class Component extends DCLogic {
           if (/intercept|fumble|turnover/i.test(s) && !/recovered by [^,]*\b(own|same)/i.test(s)) return { color: '#6b5be6', label: 'Turnover' };
           if (/^\s*Penalty/i.test(s) || (c.hasPen && !c.showPlayRow)) return { color: '#6a6863', label: 'Penalty' };
           if (/sack/i.test(s) || y < 0) return { color: '#3d8fe0', label: 'Negative' };
-          if (/touchdown/i.test(s)) return { color: '#e8503a', label: 'Touchdown' };
+          if (this.hasTD(s)) return { color: '#e8503a', label: 'Touchdown' };
           const pass = /pass|scramble/i.test(s), m = /^(\d)\D+&\s*(\d+|Goal)/i.exec(c.down || '');
           if (y >= 20) return { color: '#f08a3c', label: 'Explosive' };
           if (!m) return { color: '#6a6863', label: '' };
@@ -2854,7 +2861,7 @@ class Component extends DCLogic {
               d.n++;
               const y = yn(c), on = i === ci, gr = grade(c, y), s = [c.text, c.detail, c.result, ...(c.segs || []).map(x => x.label), ...(c.outTags || []).map(f => f.label)].filter(x => typeof x === 'string').join(' '), nx = chainArr[i + 1];
               const pen = /^\s*Penalty/i.test(s) || (c.hasPen && !c.showPlayRow), type = /punt/i.test(s) ? 'punt' : /field goal|kickoff|extra point|\bFG\b|\bPAT\b/i.test(s) ? 'kick' : /pass|sack|scramble|intercept|incomplete/i.test(s) ? 'pass' : 'rush';
-              const td = /touchdown/i.test(s), to = gr.label === 'Turnover', fd = !td && !to && type !== 'kick' && type !== 'punt' && y > 0 && !/goal/i.test(c.down || '') && !!nx && nx._dr === c._dr && /^1st/i.test(nx.down || ''), dn = +((/^(\d)/.exec(c.down || '') || [])[1] || 0);
+              const td = this.hasTD(s), to = gr.label === 'Turnover', fd = !td && !to && type !== 'kick' && type !== 'punt' && y > 0 && !/goal/i.test(c.down || '') && !!nx && nx._dr === c._dr && /^1st/i.test(nx.down || ''), dn = +((/^(\d)/.exec(c.down || '') || [])[1] || 0);
               const fgm = /field goal/i.test(s) && !/kickoff/i.test(s) ? +((/from (\d+) y|(\d+) Yd Field Goal|(\d+)[- ]yard field goal/i.exec(s) || []).slice(1).find(Boolean) || 0) : 0, fgMiss = fgm && /no good|missed|blocked|wide/i.test(s);
               const bk = fgm ? { k: 'FG ' + fgm, up: fgm < 30 ? 24 : fgm < 40 ? 40 : 56, empty: fgMiss } : /extra point|kick attempt|\bPAT\b/i.test(s) && !/kickoff/i.test(s) ? { k: 'PAT', up: 8, empty: /no good|missed|blocked|failed/i.test(s) } : y < 0 ? { k: 'Loss', up: 0, dn: 8 } : y === 0 ? { k: 'No gain', up: 8, empty: true } : y <= 3 ? { k: 'Short', up: 8 } : y <= 9 ? { k: 'Medium', up: 24 } : y <= 19 ? { k: 'Long', up: 40 } : { k: 'Explosive', up: 56 };
               const pyRaw = c.hasPen && c.showPlayRow ? (/([+−-])\s*(\d+)/.exec(c.penY || '') || null) : null, pY = pyRaw ? (pyRaw[1] === '+' ? 1 : -1) * +pyRaw[2] : 0;
