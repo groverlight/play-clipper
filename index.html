@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play Clipper</title>
+<meta name="pc-build" content="1795708690">
 <script src="./vendor/react.production.min.js"></script>
 <script src="./vendor/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
@@ -2357,28 +2358,23 @@ class Component extends DCLogic {
   recenter() { setTimeout(() => { this._rowV = 0; this.scrollRow(this.state.cur || 0); }, 60); }
 
   // ---- self-update: when a new version is published, swap to it quietly (never mid-scan or mid-typing) ----
-  async pageSig() { try { const t = await fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.text() : ''); let h = 0; for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0; return t ? t.length + ':' + h : ''; } catch (e) { return ''; } }
+  // ---- self-update: version.json carries a build number that only goes up. Swap only to a NEWER build (a CDN edge serving an older
+  // copy must never trigger a reload — that ping-ponged old/new code and the old code re-placed clips), only when the tab is in the
+  // background or untouched for 5 min, never mid-scan, mid-typing or while a clip plays. The reload URL busts the HTML cache.
+  build() { const m = document.querySelector('meta[name="pc-build"]'); return m ? +m.content || 0 : 0; }
   watchForUpdates() {
-    this.pageSig().then(sig => { this._sig = sig; });
+    const mine = this.build(); if (!mine) return;
     this._lastInput = Date.now(); const mark = () => { this._lastInput = Date.now(); };
-    ['pointerdown', 'keydown', 'wheel'].forEach(ev => window.addEventListener(ev, mark, { passive: true }));
+    ['pointerdown', 'keydown', 'wheel', 'pointermove'].forEach(ev => window.addEventListener(ev, mark, { passive: true }));
     clearInterval(this._updT); this._updT = setInterval(async () => {
-      if (!this._sig) { this._sig = await this.pageSig(); return; }
-      if (!this._newVer) { const sig = await this.pageSig(); if (sig && sig !== this._sig) this._newVer = true; }
+      if (!this._newVer) { try { const j = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then(r => r.json()); if (+j.build > mine) this._newVer = +j.build; } catch (e) {} }
       if (!this._newVer) return;
       const busy = this.state.phase === 'analyzing' || this.bugBusy || this.state.importing || this.state.qFocus || this.state.draft || (this.hv && !this.hv.paused);
-      const idle = document.hidden || Date.now() - this._lastInput > 45000;
+      const idle = document.hidden || Date.now() - this._lastInput > 300000;
       if (busy || !idle) return;
       try { sessionStorage.setItem('pc-view', JSON.stringify({ key: this._ccKey, unit: this.state.unit, q: this.state.q, panel: this.state.panel, scope: this.state.scope })); } catch (e) {}
-      location.reload();
-    }, 30000);
-  }
-  diag() {
-    const G = this.state.game, clips = new Map((this.state.clips || []).map(c => [c.id, c])), F = this.auditFlags || {}, B = this.bug || {};
-    const bg = (t) => { const r = B[this.bkey(t)]; return r ? (r.q || '?') + 'Q ' + Math.floor(r.s / 60) + ':' + String(r.s % 60).padStart(2, '0') : '-'; };
-    const lines = ['file ' + (this.fileKey || '') + ' dur ' + Math.round(this.state.duration || 0) + ' phase ' + this.state.phase + ' bugOn ' + !!this.bugOn + ' unit ' + this.state.unit];
-    ((G && G.plays) || []).forEach((p, i) => { const c = clips.get(p.id); lines.push([i, p.id, 'Q' + p.q + ' ' + p.clock, (p.down || '') + (p.spot ? ' @' + p.spot : ''), p.st ? 'ST' : (p.off === this.TEAM ? 'OFF' : 'DEF'), String(p.text || '').slice(0, 60), c ? `st ${c.start.toFixed(1)} sn ${c.snap.toFixed(1)} en ${c.end.toFixed(1)}${c.est ? ' EST' : ''} bug ${bg(c.snap - 0.5)} / ${bg(c.snap + 2)}` : 'NO CLIP', (F[p.id] || []).join(',')].join(' | ')); });
-    return lines.join('\n');
+      location.replace(location.pathname + '?v=' + this._newVer);
+    }, 60000);
   }
   // ---- placeholder "AI" notes: written from ESPN stats until a real model is connected ----
   noteFor(c, F, t, nx) {
