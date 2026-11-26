@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play Clipper</title>
-<meta name="pc-build" content="1795712090">
+<meta name="pc-build" content="1795712116">
 <script src="./vendor/react.production.min.js"></script>
 <script src="./vendor/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
@@ -87,7 +87,8 @@ input::placeholder{color:#8b8984}
   </sc-if>
   <sc-if value="{{ readyMsg }}" hint-placeholder-val="{{ false }}"><span style="flex:none;height:32px;display:flex;align-items:center;padding:0 16px;border-radius:16px;background:#1c1c1a;font-size:13px;line-height:18px;font-weight:700;color:#eceae6;white-space:nowrap">All clips ready</span></sc-if>
   <sc-if value="{{ showReview }}" hint-placeholder-val="{{ false }}"><button onClick="{{ nextFlag }}" title="Clips the self-check couldn't fix · jump to the next one" style="flex:none;height:32px;display:flex;align-items:center;gap:8px;padding:0 16px;border:none;border-radius:16px;background:#1c1c1a;color:#eceae6;font-size:13px;line-height:18px;font-weight:700;cursor:pointer;white-space:nowrap" style-hover="background:#2a2a28"><span style="width:8px;height:8px;border-radius:50%;background:#e8503a"></span>{{ reviewTxt }}</button></sc-if>
-  <div style="flex:none;width:32px;height:32px;border-radius:50%;background:#3a3a37"></div>
+  <sc-if value="{{ copiedMsg }}" hint-placeholder-val="{{ false }}"><span style="flex:none;height:32px;display:flex;align-items:center;padding:0 16px;border-radius:16px;background:#1c1c1a;font-size:13px;line-height:18px;font-weight:700;color:#eceae6;white-space:nowrap">Clip report copied · paste it in the chat</span></sc-if>
+  <button onClick="{{ copyReport }}" title="Copy clip report" aria-label="Copy clip report" style="flex:none;width:32px;height:32px;border-radius:50%;background:#3a3a37;border:none;padding:0;cursor:pointer" style-hover="background:#4a4a46"></button>
 
   <!-- schedule menu -->
   <sc-if value="{{ schedOpen }}" hint-placeholder-val="{{ false }}">
@@ -2420,6 +2421,11 @@ class Component extends DCLogic {
       location.replace(location.pathname + '?v=' + this._newVer);
     }, 60000);
   }
+  copyReport() {
+    const t = this.diag(), done = () => { this.setState({ copiedMsg: true }); clearTimeout(this._copTO); this._copTO = setTimeout(() => this.setState({ copiedMsg: false }), 4000); };
+    const fallback = () => { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e) {} ta.remove(); done(); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, fallback); else fallback();
+  }
   diag() {
     const G = this.state.game, clips = new Map((this.state.clips || []).map(c => [c.id, c])), F = this.auditFlags || {}, B = this.bug || {};
     const bg = (t) => { const r = B[this.bkey(t)]; return r ? (r.q || '?') + 'Q ' + Math.floor(r.s / 60) + ':' + String(r.s % 60).padStart(2, '0') : '-'; };
@@ -2542,7 +2548,7 @@ class Component extends DCLogic {
       hasScore: T.length === 2, noScore: T.length !== 2, away: side(T[0], T[1]), home: side(T[1], T[0]), gStatus, gDate: (G && G.dateShort) || '',
       gameMsg: st.gameLoading ? 'Loading game…' : st.gameError || 'Pick a game from the schedule', gameMsgColor: st.gameError ? '#f08a6a' : '#8b8984',
       ...(() => { const bm = '', fr = /(\d+)\s*\/\s*(\d+)/.exec(bm), bp = fr ? Math.round(+fr[1] / +fr[2] * 100) + '%' : /(\d+)%/.test(bm) ? /(\d+)%/.exec(bm)[1] + '%' : '';
-        return { readyMsg: !!st.readyMsg && !analyzing, showProg: analyzing || !!st.importing || !!bm, progLabel: st.importing ? 'Opening video…' : bm ? bm.replace(/\s*·\s*\d+\s*\/\s*\d+\s*$/, '').replace(/\s*·\s*\d+%.*$/, '') : 'Finding plays' + (this.etaMin && this.rateS ? ` · ~${this.etaMin} min left` : ''), progPct: st.importing ? '' : bm ? bp : pctTxt, progW: st.importing ? '4%' : bm ? (bp || '50%') : pctTxt,
+        return { copiedMsg: !!st.copiedMsg, copyReport: () => this.copyReport(), readyMsg: !!st.readyMsg && !analyzing, showProg: analyzing || !!st.importing || !!bm, progLabel: st.importing ? 'Opening video…' : bm ? bm.replace(/\s*·\s*\d+\s*\/\s*\d+\s*$/, '').replace(/\s*·\s*\d+%.*$/, '') : 'Finding plays' + (this.etaMin && this.rateS ? ` · ~${this.etaMin} min left` : ''), progPct: st.importing ? '' : bm ? bp : pctTxt, progW: st.importing ? '4%' : bm ? (bp || '50%') : pctTxt,
           showReview: false, reviewTxt: `${st.auditN} to review`, nextFlag: b.nextFlag }; })(),
       scanTip: (b.statusSub || 'Reading the video') + '. Keep this tab open.',
       toggleSched: () => { const o = !st.schedOpen; this.setState({ schedOpen: o }); if (o && !st.sched) this.loadSchedule(); },
