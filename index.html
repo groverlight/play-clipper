@@ -159,6 +159,7 @@ input::placeholder{color:#8b8984}
         <div onClick="{{ c.togglePlay }}" onMouseEnter="{{ c.enter }}" onMouseLeave="{{ c.leave }}" style="position:relative;width:100%;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:#1c1c1a;cursor:pointer">
           <sc-if value="{{ c.hasThumb }}" hint-placeholder-val="{{ false }}"><img ref="{{ c.imgRef }}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block"></sc-if>
           <sc-if value="{{ c.noClip }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;color:#8b8984">{{ c.noClipTxt }}</div></sc-if>
+          <sc-if value="{{ c.noThumb }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;color:#8b8984">{{ c.noThumbTxt }}</div></sc-if>
           <sc-if value="{{ c.canSnap }}" hint-placeholder-val="{{ false }}"><button onClick="{{ c.snapPng }}" title="Save screenshot" aria-label="Save screenshot" style="position:absolute;top:8px;right:8px;z-index:6;width:32px;height:32px;border:none;border-radius:8px;background:rgba(20,20,19,.82);color:#eceae6;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"></path><path d="M7 10l5 5 5-5"></path><path d="M5 20h14"></path></svg></button></sc-if>
         </div>
         <div style="height:36px;display:flex;align-items:flex-start;gap:32px;visibility:{{ c.belowVis }}">
@@ -298,7 +299,7 @@ class Component extends DCLogic {
     window.__clipper = this;
     const wake = async () => { const busy = this.state.phase === 'analyzing' || this.bugBusy; try { if (busy && !this._wake && navigator.wakeLock) { this._wake = await navigator.wakeLock.request('screen'); this._wake.addEventListener('release', () => { this._wake = null; }); } else if (!busy && this._wake) { this._wake.release(); this._wake = null; } } catch (e) {} };
     clearInterval(this._wakeT); this._wakeT = setInterval(wake, 5000); document.addEventListener('visibilitychange', wake);
-    clearInterval(this._thumbWatch); this._thumbWatch = setInterval(() => { if (this.state.phase === 'done' && !this.thumbBusy) this.pumpThumbs(); }, 1500);
+    clearInterval(this._thumbWatch); this._thumbWatch = setInterval(() => { if ((this.state.phase === 'done' || this.state.phase === 'analyzing') && !this.thumbBusy) this.pumpThumbs(); }, 1500);
     this.onTlKey = (e) => { if (e.key === 'Escape' && this.spots && this.hvKey && this.spots[this.hvKey]) { this.spotClear(); return; } if (this.state.openId || e.metaKey || e.ctrlKey || e.altKey || /INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName || '')) return; const n = this._tlN || 0; const d = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0; if (!d || !n) return; e.preventDefault(); e.stopPropagation(); this.setCur(Math.max(0, Math.min(n - 1, (this.state.cur || 0) + d)), true, true); };
     window.addEventListener('keydown', this.onTlKey, true); this.onFocusDown = () => { if (document.activeElement && document.activeElement !== document.body && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) document.activeElement.blur(); window.focus(); }; window.addEventListener('pointerdown', this.onFocusDown, true);
     this.onTlUp = () => { this.tlDrag = false; }; window.addEventListener('pointerup', this.onTlUp);
@@ -1794,9 +1795,13 @@ class Component extends DCLogic {
   }
   thumbUrl(c) { if (this.thumbHold) return ''; const x = c && this.thumbs[c.id]; return x && x.url && x.v === 3 && x.s != null && Math.abs(x.s - c.start) <= 0.3 ? x.url : ''; }
   onThumbSeeked() {
-    const id = this.thumbBusy;
-    if (!id) return;
-    const g = this.tc.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(this.tv, 0, 0, 1280, 720);
+    const id = this.thumbBusy, tv = this.tv;
+    if (!id || !tv) return;
+    // wait until the seeked frame is actually decoded and shown — drawing right on 'seeked' gives black frames on big 1080p files
+    if (!id.waited) { id.waited = true; let done = false; const go = () => { if (done) return; done = true; if (this.thumbBusy === id) this.onThumbSeeked(); }; if (tv.requestVideoFrameCallback) tv.requestVideoFrameCallback(() => setTimeout(go, 30)); setTimeout(go, 400); return; }
+    const g = this.tc.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(tv, 0, 0, 1280, 720);
+    const px = g.getImageData(0, 0, 1280, 720).data; let sum = 0, nPx = 0; for (let k = 0; k < px.length; k += 4 * 997) { sum += px[k] + px[k + 1] + px[k + 2]; nPx++; }
+    if (sum / (nPx * 3 || 1) < 10 && (id.tries || 0) < 3) { id.tries = (id.tries || 0) + 1; id.waited = false; this.thumbAt = performance.now(); tv.currentTime = Math.min((tv.duration || 1e9) - 0.1, tv.currentTime + 0.25); return; }
     this.thumbs[id.id] = { t: id.t, s: id.s, url: this.tc.toDataURL('image/jpeg', 0.88), hq: 2, v: 3 };
     clearTimeout(this.thumbSaveTO); const fk = this.fileKey; this.thumbSaveTO = setTimeout(() => { if (fk !== this.fileKey) return; const o = {}; for (const k in this.thumbs) if (this.thumbs[k].hq === 2) o[k] = this.thumbs[k]; this.cachePut('thumbs|' + fk, o); }, 1500);
     this.thumbBusy = null; clearTimeout(this.thumbTO);
@@ -2372,7 +2377,7 @@ class Component extends DCLogic {
       const F = facts[i], isCur = i === ci;
       return { ...c, isCur, hasDown: !!c.down, spotTxt: c.spot ? 'at ' + c.spot : '', meta: metaOf(c), title: this.playTitle(c.sum),
         desc: this.noteFor(c, F, ticks[i], chain[i + 1]) || c.text || '', descTip: c.text || '', tags: this.cardTags(c, F).slice(0, 6).map(l => ({ label: l, pick: (e) => { e.stopPropagation(); this.setSearch(l); } })),
-        op: isCur ? '1' : '0.5', belowVis: isCur ? 'visible' : 'hidden', padR: isCur ? (hasNav ? '336px' : '152px') : '0px' };
+        noThumb: !!c.hasClip && !c.hasThumb, noThumbTxt: isCur ? 'Hover to play · preview loading' : 'Preview loading', op: isCur ? '1' : '0.5', belowVis: isCur ? 'visible' : 'hidden', padR: isCur ? (hasNav ? '336px' : '152px') : '0px' };
     });
     // ---- timeline ----
     const RUN = '#4fc27a', PASS = '#4f9fe8', TO = '#e8503a', FLAG = '#f2d24b', TRACK = '#3a3936';
