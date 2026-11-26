@@ -16,7 +16,7 @@ const { chromium } = require('playwright'); const path = require('path'), fs = r
     C.bugOn = true; const rawF = C.detectGame(); const fin = C.guardBug(rawF);
     const np = Object.fromEntries(fin.map(c => [c.id, c.snap]));
     const m = (a) => new Map(a.map(c => [c.id, c]));
-    return { raw: rawF.map(c => [c.id, c.snap, c.est]), base: [...m(base)].map(([k, c]) => [k, c.snap, c.est]), fin: [...m(fin)].map(([k, c]) => [k, c.snap, c.est, !!c.guarded, !!c.rescued]), np };
+    return { starts: fin.map(c => [c.id, c.start, c.snap]), raw: rawF.map(c => [c.id, c.snap, c.est]), base: [...m(base)].map(([k, c]) => [k, c.snap, c.est]), fin: [...m(fin)].map(([k, c]) => [k, c.snap, c.est, !!c.guarded, !!c.rescued]), np };
   }, d);
   fs.writeFileSync(process.argv[3] || 'replay-out.json', JSON.stringify(out)); console.log('ok', errs.slice(0, 5).join(' | '));
   await b.close();
