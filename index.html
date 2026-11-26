@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play Clipper</title>
-<meta name="pc-build" content="1795712236">
+<meta name="pc-build" content="1795712266">
 <script src="./vendor/react.production.min.js"></script>
 <script src="./vendor/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
@@ -2435,8 +2435,11 @@ class Component extends DCLogic {
       location.replace(location.pathname + '?v=' + this._newVer);
     }, 60000);
   }
-  copyReport() {
-    const t = this.diag(), done = () => { this.setState({ copiedMsg: true }); clearTimeout(this._copTO); this._copTO = setTimeout(() => this.setState({ copiedMsg: false }), 4000); };
+  async copyReport() {
+    // full scoreboard clock reads (1s grid) so placement can be rebuilt and tested offline against the whole game
+    let B = this.bug && Object.keys(this.bug).length ? this.bug : (((await this.cacheGet(this.fileKey + '|bug2')) || {}).bug || {});
+    const enc = Object.keys(B).map(Number).sort((a, b) => a - b).filter(k => B[k] && B[k].s != null).map(k => k + ',' + B[k].s + ',' + (B[k].q == null ? '' : B[k].q)).join(';');
+    const t = this.diag() + '\nBUG ' + enc, done = () => { this.setState({ copiedMsg: true }); clearTimeout(this._copTO); this._copTO = setTimeout(() => this.setState({ copiedMsg: false }), 4000); };
     const fallback = () => { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e) {} ta.remove(); done(); };
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, fallback); else fallback();
   }
