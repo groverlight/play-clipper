@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play Clipper</title>
-<meta name="pc-build" content="1795708690">
+<meta name="pc-build" content="1795708884">
 <script src="./vendor/react.production.min.js"></script>
 <script src="./vendor/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
@@ -1133,7 +1133,8 @@ class Component extends DCLogic {
     for (let k = 0; k < placed.length; k++) {
       if (run !== this.bugRun) return; const p = placed[k], s = S[p.id], cs = this.clockSec(p); if (cs == null || p.clkEnd || p.q > 4) continue;
       const { sd, run: running } = sdOf(p, s), others = placed.filter(x => x !== p && S[x.id] != null), crowd = others.filter(x => Math.abs(S[x.id] - s) < 6);
-      const wrong = (sd != null && (sd < -3 || (running && sd > 8))) || (crowd.length && sd == null) || crowd.some(x => good(x) && sd != null && !(sd >= -3 && sd <= 6));
+      const blind = [-3, -2, -1, 0, 1, 2, 3].every(dt => !at(Math.round(s + dt)));   // no scoreboard on screen around the snap → a graphic/close-up/break, not the play
+      const wrong = (sd != null && (sd < -3 || (running && sd > 8))) || (crowd.length && sd == null) || blind || crowd.some(x => good(x) && sd != null && !(sd >= -3 && sd <= 6));
       if (!wrong) continue;
       const qOk = r => r && (r.q == null || r.q === p.q), free = (t) => !others.some(x => Math.abs(S[x.id] - t) < 6 && good(x));
       const C = [];
@@ -1338,7 +1339,7 @@ class Component extends DCLogic {
       if (saved) { this.bug = saved.bug || {}; this.bugSnap = fresh ? saved.snap || {} : {}; this.flagSnap = saved.flag || {}; this.flagM = saved.flagM || {}; this.snapFix = saved.fix || {}; this.kickSnap = saved.kick || {}; this.tabM = saved.tabM || {}; if (!fresh && (saved.v || 0) < 12) for (const k in this.bug) if (!this.bug[k] || this.bug[k].s === 60) delete this.bug[k]; }
       if (fresh && saved.complete) { this.bugOn = true; this.redetect(); if (!saved.flagDone) { await this.bugEngine(); await this.flagPass(run); await this.cachePut(ck, { ...saved, flag: this.flagSnap, flagM: this.flagM, flagDone: true }); this.redetect(); } if (saved.fixDone !== 17) { this.snapFix = {}; this.redetect(); await this.bugEngine(); await this.verifySnaps(run); if (run !== this.bugRun) return; await this.cachePut(ck, { ...saved, bug: this.bug, flag: this.flagSnap, flagM: this.flagM, flagDone: true, fix: this.snapFix, fixDone: 17, ddDone: 0 }); this.redetect(); this.setState({ bugMsg: '' }); } if (saved.otDone !== 1 && this.state.game.plays.some(p => p.q >= 5)) { await this.bugEngine(); await this.otPass(run); if (run !== this.bugRun) return; this.redetect(); await this.kickPass(run); if (run !== this.bugRun) return; await this.cachePut(ck, { ...saved, bug: this.bug, snap: this.bugSnap, flag: this.flagSnap, flagM: this.flagM, flagDone: true, fix: this.snapFix, fixDone: 17, kick: this.kickSnap, tabM: this.tabM, kickDone: 2, otDone: 1 }); this.redetect(); this.setState({ bugMsg: '' }); await this.audit(); this.redetect(); return; } if (saved.kickDone !== 2) { await this.bugEngine(); await this.kickPass(run); if (run !== this.bugRun) return; await this.cachePut(ck, { ...saved, bug: this.bug, flag: this.flagSnap, flagM: this.flagM, flagDone: true, fix: this.snapFix, fixDone: 17, kick: this.kickSnap, tabM: this.tabM, kickDone: 2 }); this.redetect(); this.setState({ bugMsg: '' }); } await this.bugEngine(); if (!this._ss || this._ss.length !== this.samples.length) this._ss = this.samples.slice().sort((a, b) => a.t - b.t);
         this.sbSnap = saved.sb || null; this.sbLong = saved.sbLong || {}; this.sbBad = saved.sbBad || {};
-        if (saved.sbDone !== 2) { await this.sbPass(run); if (run !== this.bugRun) return; await this.cachePut(ck, { ...((await this.cacheGet(ck)) || saved), bug: this.bug, sb: this.sbSnap, sbLong: this.sbLong, sbBad: this.sbBad, sbDone: 2, kick: this.kickSnap, tabM: this.tabM }); }
+        if (saved.sbDone !== 3) { await this.sbPass(run); if (run !== this.bugRun) return; await this.cachePut(ck, { ...((await this.cacheGet(ck)) || saved), bug: this.bug, sb: this.sbSnap, sbLong: this.sbLong, sbBad: this.sbBad, sbDone: 3, kick: this.kickSnap, tabM: this.tabM }); }
         this.redetect(); await this.audit(); this.redetect(); return; }
       await this.bugEngine();
       const save = () => this.cachePut(ck, { v: 12, bug: this.bug, snap: this.bugSnap, complete: false });
