@@ -1091,11 +1091,18 @@ class Component extends DCLogic {
       const C = [];
       if (p.clkEnd) {
         // clock stops on ESPN's (end) time → the snap is the last start before that stop
-        for (let t = w0 - 1; t > w0 - 40 && t > lo; t--) { const a = at(t), b = at(t + 1), z = at(t - 1); if (a && b && z && qOk(a) && z.s === a.s && b.s < a.s) { C.push(t + 0.3); break; } }
-        const ws = this.wideSnap(Math.max(lo, w0 - 25), w0 - 2, true); if (ws != null) C.push(ws);
+        // the play itself takes time: a 61-yd TD can't snap 3s before the clock stops (Clemson play 6 snapped at 13:09 on a one-read clock stutter mid-play)
+        const yds = +((/for (\d+) yards?|(\d+) Yd/i.exec(p.text || '') || []).slice(1).find(Boolean) || 0), hiT = w0 - Math.max(3, Math.min(12, 2 + yds / 7));
+        // the clock before the snap = the previous play's clock when that play stopped it (incomplete, flag, out of bounds) → snap = where it starts running from there
+        const pp = (() => { for (let j = i - 1; j >= 0; j--) { const x = plays[j]; if (x.pat || /kickoff|timeout/i.test((x.type || '') + ' ' + (x.text || ''))) continue; return x.q === p.q ? x : null; } return null; })(), pcs = pp ? this.clockSec(pp) : null;
+        const frozen3 = (t) => { const a = at(t), b = at(t + 1), z = at(t - 1), z2 = at(t - 2); return a && b && z && z2 && qOk(a) && z2.s === a.s && z.s === a.s && b.s < a.s ? a : null; };
+        if (pcs != null && pp && !pp.clkEnd && /incomplete|NO PLAY|out of bounds|PENALTY|spiked/i.test(pp.text || '')) for (let t = Math.max(lo + 2, Math.floor(w0 - 90)); t <= hiT; t++) { const a = frozen3(t); if (a && a.s <= pcs + 1 && a.s >= pcs - 3) { const w = this.wideSnap(t - 1.5, t + 1.5); C.push(w != null ? w : t + 0.3); break; } }
+        for (let t = Math.floor(hiT); t > w0 - 40 && t > lo + 1; t--) if (frozen3(t)) { C.push(t + 0.3); break; }
+        const ws = this.wideSnap(Math.max(lo, w0 - 25), hiT, true); if (ws != null) C.push(ws);
       } else {
         // stopped clock starts on the snap
-        for (let t = Math.max(lo, w0 - 2); t <= w1 + 2; t++) { const a = at(t), b = at(t + 1), z = at(t - 1); if (a && b && z && qOk(a) && z.s === a.s && b.s === a.s - 1 && a.s >= cs - 1 && a.s <= cs + 7) { const w = this.wideSnap(t - 1.5, t + 1.5); C.push(w != null ? w : t + 0.3); break; } }
+        let tEnd = w1 + 2; for (const [t, r] of A) { if (t <= w0) continue; if (t > w0 + 400) break; if (qOk(r) && r.s < cs - 8) { tEnd = Math.max(tEnd, t); break; } tEnd = Math.max(tEnd, Math.min(t, w0 + 400)); }
+        for (let t = Math.max(lo, w0 - 2); t <= tEnd; t++) { const a = at(t), b = at(t + 1), z = at(t - 1); if (a && b && z && qOk(a) && z.s === a.s && b.s === a.s - 1 && a.s >= cs - 1 && a.s <= cs + 7) { const w = this.wideSnap(t - 1.5, t + 1.5); C.push(w != null ? w : t + 0.3); break; } }
         // running clock: the wide set→motion while the scoreboard passes ESPN's time
         for (let t = Math.max(lo, w0 - 1); t < w1 + 2;) { const w = this.wideSnap(t, w1 + 2); if (w == null) break; C.push(w); t = w + 4; }
         // back-solve: broadcast reads ~0–6s above ESPN at the snap
@@ -1111,9 +1118,30 @@ class Component extends DCLogic {
       // flag on the play → keep recording until it's over
       for (const dt of [4, 7, 10]) if (await this.flagAt(best + dt)) { this.sbLong[p.id] = true; break; }
     }
+    await this.sbRepair(run, plays, at);
     // kicks sit between the newly placed plays
     this.kickSnap = {}; if (this.tabM) for (const t in this.tabM) if (this.tabM[t] == null) delete this.tabM[t];
     this.redetect(); await new Promise(r => setTimeout(r, 0)); await this.kickPass(run); this.redetect(); this.setState({ bugMsg: '' });
+  }
+  // After placement: a play whose scoreboard at the snap disagrees with ESPN's clock (late by >3s, or >8s early on a running clock), or that sits on top of a neighbour,
+  // is re-found where the scoreboard shows ESPN's clock. Clips the scoreboard confirms are never moved (rule 13); two plays never share a clip (rule 8).
+  async sbRepair(run, plays, at) {
+    const S = this.sbSnap, placed = plays.filter(p => S[p.id] != null).sort((a, b) => S[a.id] - S[b.id]);
+    const sdOf = (p, s) => { const cs = this.clockSec(p); if (cs == null || p.clkEnd) return { sd: null, run: false }; const qOk = r => r && (r.q == null || r.q === p.q); const a = at(Math.round(s - 1)) || at(Math.round(s - 2)), b = at(Math.round(s + 2)); return { sd: qOk(a) ? a.s - cs : null, run: qOk(a) && qOk(b) && b.s < a.s }; };
+    const good = (p) => { const { sd, run: r } = sdOf(p, S[p.id]); return sd != null && sd >= -3 && !(r && sd > 8); };
+    for (let k = 0; k < placed.length; k++) {
+      if (run !== this.bugRun) return; const p = placed[k], s = S[p.id], cs = this.clockSec(p); if (cs == null || p.clkEnd || p.q > 4) continue;
+      const { sd, run: running } = sdOf(p, s), others = placed.filter(x => x !== p && S[x.id] != null), crowd = others.filter(x => Math.abs(S[x.id] - s) < 6);
+      const wrong = (sd != null && (sd < -3 || (running && sd > 8))) || (crowd.length && sd == null) || crowd.some(x => good(x) && sd != null && !(sd >= -3 && sd <= 6));
+      if (!wrong) continue;
+      const qOk = r => r && (r.q == null || r.q === p.q), free = (t) => !others.some(x => Math.abs(S[x.id] - t) < 6 && good(x));
+      const C = [];
+      for (let t = Math.max(2, Math.round(s - 150)); t <= s + 150; t++) { const a = at(t), b = at(t + 1), z = at(t - 1); if (qOk(a) && b && z && z.s === a.s && b.s === a.s - 1 && a.s >= cs - 1 && a.s <= cs + 7) { const w = this.wideSnap(t - 1.5, t + 1.5); C.push(w != null ? w : t + 0.3); } }
+      for (let t = Math.max(1, Math.round(s - 150)); t <= s + 150; t++) { const r = at(t), z = at(t - 1); if (qOk(r) && z && z.s === r.s + 1 && r.s <= cs + 3 && r.s >= cs - 1) { C.push(t - (cs + 3 - r.s)); break; } }
+      const key = this.ddKey(p); let best = null, bsc = -1;
+      for (const c of C.filter(free).sort((x, y) => Math.abs(x - s) - Math.abs(y - s))) { let sc = 0; if (key) { const rr = [await this.readDD(c - 1), await this.readDD(c - 2)].filter(Boolean); if (rr.some(r => this.ddMatch(r, key))) sc += 2; else if (rr.length && !rr.some(r => this.ddDown(r) === key.split('|')[0])) sc -= 2; } if (sc > bsc) { bsc = sc; best = c; } if (sc >= 2) break; }
+      if (best != null && bsc >= 0) { S[p.id] = best; this.sbBad && delete this.sbBad[p.id]; }
+    }
   }
   // ESPN text uses its own team codes (Miami = "UM", not "MIA") → learn code→team from plays whose spot ("MIA 6") matches "from UM06"
   teamCode(code) {
@@ -1309,7 +1337,7 @@ class Component extends DCLogic {
       if (saved) { this.bug = saved.bug || {}; this.bugSnap = fresh ? saved.snap || {} : {}; this.flagSnap = saved.flag || {}; this.flagM = saved.flagM || {}; this.snapFix = saved.fix || {}; this.kickSnap = saved.kick || {}; this.tabM = saved.tabM || {}; if (!fresh && (saved.v || 0) < 12) for (const k in this.bug) if (!this.bug[k] || this.bug[k].s === 60) delete this.bug[k]; }
       if (fresh && saved.complete) { this.bugOn = true; this.redetect(); if (!saved.flagDone) { await this.bugEngine(); await this.flagPass(run); await this.cachePut(ck, { ...saved, flag: this.flagSnap, flagM: this.flagM, flagDone: true }); this.redetect(); } if (saved.fixDone !== 17) { this.snapFix = {}; this.redetect(); await this.bugEngine(); await this.verifySnaps(run); if (run !== this.bugRun) return; await this.cachePut(ck, { ...saved, bug: this.bug, flag: this.flagSnap, flagM: this.flagM, flagDone: true, fix: this.snapFix, fixDone: 17, ddDone: 0 }); this.redetect(); this.setState({ bugMsg: '' }); } if (saved.otDone !== 1 && this.state.game.plays.some(p => p.q >= 5)) { await this.bugEngine(); await this.otPass(run); if (run !== this.bugRun) return; this.redetect(); await this.kickPass(run); if (run !== this.bugRun) return; await this.cachePut(ck, { ...saved, bug: this.bug, snap: this.bugSnap, flag: this.flagSnap, flagM: this.flagM, flagDone: true, fix: this.snapFix, fixDone: 17, kick: this.kickSnap, tabM: this.tabM, kickDone: 2, otDone: 1 }); this.redetect(); this.setState({ bugMsg: '' }); await this.audit(); this.redetect(); return; } if (saved.kickDone !== 2) { await this.bugEngine(); await this.kickPass(run); if (run !== this.bugRun) return; await this.cachePut(ck, { ...saved, bug: this.bug, flag: this.flagSnap, flagM: this.flagM, flagDone: true, fix: this.snapFix, fixDone: 17, kick: this.kickSnap, tabM: this.tabM, kickDone: 2 }); this.redetect(); this.setState({ bugMsg: '' }); } await this.bugEngine(); if (!this._ss || this._ss.length !== this.samples.length) this._ss = this.samples.slice().sort((a, b) => a.t - b.t);
         this.sbSnap = saved.sb || null; this.sbLong = saved.sbLong || {}; this.sbBad = saved.sbBad || {};
-        if (saved.sbDone !== 1) { await this.sbPass(run); if (run !== this.bugRun) return; await this.cachePut(ck, { ...((await this.cacheGet(ck)) || saved), bug: this.bug, sb: this.sbSnap, sbLong: this.sbLong, sbBad: this.sbBad, sbDone: 1, kick: this.kickSnap, tabM: this.tabM }); }
+        if (saved.sbDone !== 2) { await this.sbPass(run); if (run !== this.bugRun) return; await this.cachePut(ck, { ...((await this.cacheGet(ck)) || saved), bug: this.bug, sb: this.sbSnap, sbLong: this.sbLong, sbBad: this.sbBad, sbDone: 2, kick: this.kickSnap, tabM: this.tabM }); }
         this.redetect(); await this.audit(); this.redetect(); return; }
       await this.bugEngine();
       const save = () => this.cachePut(ck, { v: 12, bug: this.bug, snap: this.bugSnap, complete: false });
