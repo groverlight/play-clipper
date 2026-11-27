@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play Clipper</title>
-<meta name="pc-build" content="1795745506">
+<meta name="pc-build" content="1795791296">
 <script src="./vendor/react.production.min.js"></script>
 <script src="./vendor/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
@@ -1891,6 +1891,8 @@ class Component extends DCLogic {
     const shift = (c, t) => this.reclip(c, t);
     for (let k = 0; k < order.length; k++) {
       const i = order[k], c = out[i], p = P[c.id]; if (!live(p)) continue;
+      // right after a timeout: the snap is where the clock starts from the timeout's time (ESPN's play clock can be far off — Clemson offense 43: TO at 5:16, ESPN "5:07", clip sat mid-play)
+      if (p.afterTO && !p.clkEnd) { const tc = this.clockSec({ clock: p.afterTO }); if (tc != null && Math.abs(tc - (this.clockSec(p) || tc)) > 2) { let pv = null; for (let j = k - 1; j >= 0; j--) { const o = out[order[j]]; if (!o.est) { pv = o; break; } } const from = pv ? pv.snap + 6 : 0, w = this.clockStart({ clock: p.afterTO, q: p.q }, from, from + 900); if (w != null && !out.some((o, j) => j !== i && !o.est && Math.abs(o.snap - w) < 6)) { out[i] = shift(c, w); continue; } } }
       if (p.clkEnd) { const rs = runStart(p, c.snap - 2); if (rs != null && Math.abs(rs - c.snap) > 2.5) { const w = this.wideSnap(rs - 4, rs + 1.2, true); out[i] = shift(c, w != null ? w : rs - 0.5); } }
       if (ok(p, out[i].snap)) continue;
       const b = B.get(c.id); if (b && !b.est && ok(p, b.snap)) { out[i] = { ...b, guarded: true }; continue; }
@@ -1919,6 +1921,10 @@ class Component extends DCLogic {
     // no clip opens on a crowd / close-up / graphic: if the first frames aren't the field, start where the field shot begins (before the snap)
     const S = this.samples || [], ST = this._ssT && this._ssT.length === S.length ? this._ssT : (this._ssT = S.map(x => x.t));
     const fieldAt = (t) => { let lo = 0, hi = ST.length; while (lo < hi) { const m = (lo + hi) >> 1; if (ST[m] < t) lo = m + 1; else hi = m; } const w = S.slice(lo, lo + 5); return w.length ? w.reduce((a, x) => a + x.g, 0) / w.length >= 0.4 : true; };
+    // snap on a close-up / crowd shot just after the wide set ended (≤3s): the snap is in that wide shot — its set→motion, else the moment it cut away (Clemson defense 52: cut to close-ups at the snap; offense 56: false start in a red-zone shot, green only ~0.4)
+    { const G = (j) => S[j].g >= 0.38 && !S[j].c && !S[j].c0 && !S[j].soft; for (let i = 0; i < fin.length; i++) { const c = fin[i], pk = P[c.id]; if (c.est || fieldAt(c.snap) || !pk || pk.pat || /kickoff|punt|extra point|field goal/i.test((pk.type || '') + ' ' + ((pk.sum && pk.sum.result) || ''))) continue; let j = Math.min(ST.length - 1, (() => { let lo = 0, hi = ST.length; while (lo < hi) { const m = (lo + hi) >> 1; if (ST[m] < c.snap) lo = m + 1; else hi = m; } return lo; })()); let e = j; while (e > 0 && !G(e) && S[e].t > c.snap - 5) e--; if (!G(e) || S[e].t <= c.snap - 5) continue;   /* ≤5s: the camera can pan off the field with a run to the sideline (Clemson defense 02) */ const pvS = fin.reduce((m, o, jj) => jj !== i && !o.est && o.snap < c.snap ? Math.max(m, o.snap) : m, -1e9); let b = e; while (b > 0 && G(b - 1) && S[b - 1].t > Math.max(S[e].t - 15, pvS + 6)) b--; if (S[e].t - S[b].t < 2) continue;
+      let quiet = null, w = null; for (let k = b; k <= e; k++) { const x = S[k]; if (x.m < 6) { if (quiet == null) quiet = x.t; } else if (x.m >= 8) { if (quiet != null && x.t - quiet >= 1.5) w = x.t - 0.3; quiet = null; } } if (quiet != null && S[e].t - quiet >= 0.5) w = S[e].t - 0.1; if (w == null) w = S[e].t - 0.1;
+      if (w >= c.snap || fin.some((o, jj) => jj !== i && !o.est && Math.abs(o.snap - w) < 6)) continue; fin[i] = this.reclip(c, w); } }
     // snap sitting on a crowd / close-up / graphic right before the cut to the wide set → the snap is the set→motion in that wide shot (Clemson offense 52, Q3 0:13 false start: snap sat 0.4s before the cut, clip opened on 3s of sideline)
     for (let i = 0; i < fin.length; i++) { const c = fin[i]; if (c.est || fieldAt(c.snap)) continue; let cut = null; for (let t = c.snap + 0.1; t <= c.snap + 3; t += 0.1) if (fieldAt(t)) { cut = t; break; } if (cut == null) continue;
       const w = this.wideSnap(cut - 0.2, cut + 10); if (w == null || w <= c.snap) continue; if (fin.some((o, j) => j !== i && !o.est && o.snap > c.snap - 1 && o.snap < w + 6)) continue; fin[i] = this.reclip(c, w); }
@@ -1930,6 +1936,9 @@ class Component extends DCLogic {
     for (let i = 0; i < fin.length; i++) { const c = fin[i]; if (c.est) continue; let last = null; for (let j = sIdx(c.start + 0.05); j < S.length && S[j].t <= c.snap - 0.4; j++) if (S[j].c || S[j].c0 || S[j].soft) last = S[j].t; if (last != null) { let k = sIdx(last + 0.05); while (k < S.length && S[k].t <= c.snap - 0.3 && (S[k].c || S[k].c0 || S[k].soft)) k++; if (k < S.length && S[k].t <= c.snap - 0.3) fin[i] = { ...c, start: S[k].t + 0.1 }; } }
     for (let i = 0; i < fin.length; i++) { const c = fin[i]; if (c.est) continue; let j = sIdx(c.start); if (j >= S.length || solid(j) || S[j].t > c.start + 0.3) continue;
       for (; j < S.length && S[j].t <= c.snap - 0.2; j++) if (solid(j)) { if (S[j].t - c.start <= 2) fin[i] = { ...c, start: S[j].t }; break; } }
+    // a wipe / dissolve (soft cut) leaves its logo moving over the field for ~1s: start once the picture settles (Clemson offense 35, 36 opened on the ACC logo)
+    for (let i = 0; i < fin.length; i++) { const c = fin[i]; if (c.est) continue; const j0 = sIdx(c.start - 1.2); let soft = false; for (let j = j0; j < S.length && S[j].t <= c.start + 0.3; j++) if (S[j].c0 || S[j].soft || (S[j].t <= c.start && S[j].g < 0.4)) soft = true; if (!soft) continue;
+      for (let j = sIdx(c.start); j < S.length - 1 && S[j].t <= Math.min(c.start + 1.5, c.snap - 0.3); j++) if (S[j].m < 12 && S[j + 1].m < 12 && !S[j].c0 && !S[j].soft) { if (S[j].t > c.start + 0.05) fin[i] = { ...c, start: S[j].t }; break; } }
     return fin;
   }
   // a moved clip gets a fresh lead-in: start at a camera cut into the field shot if there is one in the 3s before the snap (rules 1/7),
@@ -2013,8 +2022,12 @@ class Component extends DCLogic {
   }
   // preview frame = the wide shot of the set just before the snap (not the clip's first frame, which can be a crowd / replay / graphic)
   thumbT(c) { const S = this.samples || []; if (!S.length || c.snap == null) return c.start + 0.05; let lo = 0, hi = S.length; while (lo < hi) { const m = (lo + hi) >> 1; if (S[m].t < c.start) lo = m + 1; else hi = m; }
-    let set = null, wide = null, after = null; for (let j = lo; j < S.length && S[j].t <= c.snap + 4; j++) { const x = S[j]; if (x.g < 0.5 || x.c || x.c0 || x.soft) continue; if (x.t <= c.snap - 0.1) { wide = x.t; if (x.m < 8) set = x.t; } else if (after == null) after = x.t; }
-    return set != null ? set : wide != null ? wide : after != null ? after : c.start + 0.05; }
+    // search back from the snap inside its own shot (stop at a cut), up to 8s and not before the clip start - 3s: latest low-motion field frame = the set; else the first field frame of the clip
+    let set = null, first = null, after = null; let lo2 = lo; while (lo2 > 0 && S[lo2 - 1].t >= Math.max(c.start - 3, c.snap - 8)) lo2--;
+    let k = lo2; while (k < S.length && S[k].t <= c.snap) k++; for (let j = k - 1; j >= lo2; j--) { const x = S[j]; if (x.c || x.c0 || x.soft) break; if (x.g >= 0.5 && x.m < 8 && x.t <= c.snap - 0.1) { set = x.t; break; } }
+    for (let j = lo; j < S.length && S[j].t <= c.snap + 4; j++) { const x = S[j]; if (x.g < 0.5 || x.c || x.c0 || x.soft) continue; if (x.t <= c.snap) { if (first == null) first = x.t; } else if (after == null) after = x.t; }
+    if (set == null && first == null) { for (let j = lo - 1; j >= 0 && S[j].t >= c.snap - 8; j--) { const x = S[j]; if (x.c || x.c0 || x.soft) continue; if (x.g >= 0.5) { set = x.t; break; } } }   // nothing wide inside the clip before the snap: the set just before the clip
+    return set != null ? set : first != null ? first : after != null ? after : c.start + 0.05; }
   thumbUrl(c) { const x = c && this.thumbs[c.id]; return x && x.url && x.v === 4 && x.s != null && Math.abs(x.s - c.start) <= 0.3 ? x.url : ''; }
   onThumbSeeked() {
     const id = this.thumbBusy, tv = this.tv;
