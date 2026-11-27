@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play Clipper</title>
-<meta name="pc-build" content="1795791296">
+<meta name="pc-build" content="1795801775">
 <script src="./vendor/react.production.min.js"></script>
 <script src="./vendor/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
@@ -251,9 +251,9 @@ input::placeholder{color:#8b8984}
   <sc-for list="{{ unitTabs2 }}" as="u" hint-placeholder-count="3"><button onClick="{{ u.pick }}" style="height:32px;padding:0 16px;border:none;border-radius:6px;background:{{ u.bg }};color:{{ u.fg }};font-size:13px;line-height:18px;font-weight:{{ u.fw }};cursor:pointer" style-hover="color:#eceae6">{{ u.label }}</button></sc-for>
 </div>
 <div ref="{{ tlRef }}" style="flex:none;overflow-x:auto;overflow-y:hidden;padding:0 24px;scrollbar-width:none;overscroll-behavior-x:contain">
-  <div style="display:flex;gap:16px;width:max-content;height:176px;user-select:none">
+  <div style="display:flex;gap:16px;width:max-content;height:156px;user-select:none">
     <sc-for list="{{ drives }}" as="d" hint-placeholder-count="6">
-      <sc-if value="{{ d.qDiv }}" hint-placeholder-val="{{ false }}"><div style="flex:none;width:1px;height:154px;background:#3a3a37;position:relative"><span class="caps" style="position:absolute;top:158px;left:50%;transform:translateX(-50%);color:#8b8984;white-space:nowrap">{{ d.qLab }}</span></div></sc-if>
+      <sc-if value="{{ d.qDiv }}" hint-placeholder-val="{{ false }}"><div style="flex:none;display:flex;flex-direction:column;align-items:center;gap:4px;height:152px"><span class="caps" style="height:24px;display:flex;align-items:center;color:#8b8984;white-space:nowrap">{{ d.qLab }}</span><sc-if value="{{ d.qLine }}" hint-placeholder-val="{{ true }}"><span style="flex:1;width:1px;background:#3a3a37"></span></sc-if></div></sc-if>
       <div style="flex:none;display:flex;flex-direction:column;gap:4px;min-width:72px">
         <div style="height:24px;display:flex;align-items:center;gap:8px;white-space:nowrap">
           <span class="num" style="font-size:20px;line-height:24px;font-weight:700;color:{{ d.numColor }}">{{ d.num }}</span>
@@ -2667,8 +2667,8 @@ class Component extends DCLogic {
     const chipOf = (l) => { const L = String(l || ''); const map = { TD: ['TD', 'light'], FG: ['FG', 'light'], Punt: ['PUNT', 'grey'], INT: ['INT', 'red'], Fumble: ['FUM', 'red'], Downs: ['DOWNS', 'red'], Safety: ['SAFETY', 'red'], 'Missed FG': ['MISSED FG', 'grey'], Half: ['HALF', 'grey'], End: ['END', 'grey'] }; const m = map[L] || [L.toUpperCase().slice(0, 10), 'grey']; const tone = { light: ['#eceae6', '#161615'], red: ['#e8503a', '#eceae6'], grey: ['#5a5955', '#eceae6'] }[m[1]]; return { chip: m[0], chipBg: tone[0], chipFg: tone[1], hasChip: !!m[0] }; };
     let lastQ = 0;
     const drives = (b.tl || []).map((d, di) => {
-      const q0 = (d.ticks[0] && d.ticks[0].qn) || 0, qDiv = di > 0 && q0 > lastQ; const qLab = q0 > 4 ? 'OT' : 'Q' + q0; lastQ = Math.max(lastQ, q0);
-      return { qDiv, qLab, num: d.num2, numColor: d.here ? '#eceae6' : '#a3a19c', ...chipOf(d.long), hasTeam: (st.unit || 'off') === 'all' && !!d.teamAb, team: d.teamAb, spot: d.spot || '', spotColor: d.plus ? '#eceae6' : '#8b8984', time: d.time && d.time !== '–' ? (d.spot ? ' · ' : '') + d.time : '',
+      const q0 = (d.ticks[0] && d.ticks[0].qn) || 0, qDiv = !!q0 && (di === 0 || q0 > lastQ), qLine = di > 0; const qLab = q0 > 4 ? 'OT' : 'Q' + q0; lastQ = Math.max(lastQ, q0);
+      return { qDiv, qLine, qLab, num: d.num2, numColor: d.here ? '#eceae6' : '#a3a19c', ...chipOf(d.long), hasTeam: (st.unit || 'off') === 'all' && !!d.teamAb, team: d.teamAb, spot: d.spot || '', spotColor: d.plus ? '#eceae6' : '#8b8984', time: d.time && d.time !== '–' ? (d.spot ? ' · ' : '') + d.time : '',
         plays: d.ticks.map(t => {
           const on = t.i === ci, y = t._y || 0, col = t._type === 'pass' ? PASS : RUN;
           let track = TRACK, f = { fL: '0px', fW: '10px', fTop: '32px', fH: '0px', fRad: '1px', fBg: 'transparent', fEdge: 'none' };
