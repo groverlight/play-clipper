@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play Clipper</title>
-<meta name="pc-build" content="1795744162">
+<meta name="pc-build" content="1795745093">
 <script src="./vendor/react.production.min.js"></script>
 <script src="./vendor/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
@@ -448,6 +448,8 @@ class Component extends DCLogic {
         desc: d.description || '', plays: d.offensivePlays, yds: d.yards, time: (d.timeElapsed && d.timeElapsed.displayValue) || '', from: (d.start && d.start.text) || '', to: (d.end && d.end.text) || '', q: (d.start && d.start.period && d.start.period.number) || 0
       }));
       const wpm = {}; (j.winprobability || []).forEach(w => { wpm[String(w.playId)] = w.homeWinPercentage; });
+      // the play right after a timeout snaps from a stopped clock (the timeout's clock) — finalize() requires that hold
+      { let to = null; drives.forEach(d => (d.plays || []).forEach(p => { const t = (p.type && p.type.text) || ''; if (/^Timeout/i.test(t)) { to = { q: p.period && p.period.number, c: p.clock && p.clock.displayValue }; return; } if (skip.test(t)) return; if (to && p.period && p.period.number === to.q) p._afterTO = to.c; to = null; })); }
       const plays = drives.flatMap((d, di) => (d.plays || []).map(p => ({ ...p, _drive: di })))
         .filter(p => p.wallclock && !skip.test((p.type && p.type.text) || ''))
         .map(p => {
@@ -468,7 +470,7 @@ class Component extends DCLogic {
             type, off, st: stRe.test(type) || stRe.test(p.text),
             dd: st.down > 0 && st.downDistanceText ? st.downDistanceText : '',
             down: st.down > 0 ? (st.shortDownDistanceText || (st.downDistanceText || '').split(' at ')[0]) : '',
-            spot: st.possessionText || ((st.downDistanceText || '').split(' at ')[1] || '')
+            spot: st.possessionText || ((st.downDistanceText || '').split(' at ')[1] || ''), afterTO: p._afterTO || ''
           };
         })
         .sort((a, b) => a.w - b.w);
@@ -483,7 +485,9 @@ class Component extends DCLogic {
         plays.splice(i + 1, 0, { ...p, tm: scorer, off: scorer, id: p.id + 'x', pat: true, wp: p.wp, w: nx ? Math.min(p.w + 45, (p.w + nx.w) / 2) : p.w + 45, clkEnd: false, text: txt, type: typ, st: true, dd: '', down: '', spot: '', sum: this.parsePlay(txt, typ) });
       }
       // a play right before a try is the TD → ESPN's clock is the clock after it, even when the text leads with "(13:00)" (Pitt Q3 13:00 TD: clock ran 13:09→13:00 during the play)
-      for (let i = 0; i < plays.length - 1; i++) if (plays[i + 1].pat && !plays[i].pat) plays[i].clkEnd = true;
+      // a score's ESPN clock is usually the END clock — unless the text's own "clock MM:SS" (the end) is lower: then ESPN's clock is the snap clock (Clemson offense 66, Q4 6:18 → "clock 06:14": the scoreboard stopped at 6:18 for a timeout, the TD came after it)
+      const endOf = (p) => { const m = /\bclock (\d+):(\d+)/i.exec(p.text || ''); return m ? +m[1] * 60 + +m[2] : null; }, clkOf = (p) => { const m = /^(\d+):(\d+)/.exec(p.clock || ''); return m ? +m[1] * 60 + +m[2] : null; };
+      for (let i = 0; i < plays.length - 1; i++) if (plays[i + 1].pat && !plays[i].pat) { const e = endOf(plays[i]), c = clkOf(plays[i]); plays[i].clkEnd = !(e != null && c != null && e < c); }
       if (!plays.length) throw new Error('No timed plays in that game yet.');
       const dt = comp && comp.date ? new Date(comp.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
       const title = (teams.length === 2 ? `${teams[0].abbr} @ ${teams[1].abbr}` : 'Game ' + m[1]) + (dt ? ' · ' + dt : '');
@@ -1877,6 +1881,8 @@ class Component extends DCLogic {
       const r = near(t - 1) || near(t - 0.5) || near(t - 1, 3); if (!r) return false; const sd = r.s - cs; if (sd < -1 || sd > 8) return false;
       // rule 2: clock frozen through the clip → not a live play (Clemson Q3 0:13 run sat on a frozen 0:13)
       const f0 = near(t - 0.5), f8 = near(t + 8); if (f0 && f8 && f0.s === f8.s && !/incomplete/i.test(p.text || '')) return false;
+      // right after a timeout the clock sits stopped on the timeout's time until the snap (Clemson offense 66: clip sat in the 6s before Miami's timeout at 6:18)
+      if (p.afterTO) { const tc = this.clockSec({ clock: p.afterTO }); if (tc != null && Math.abs(tc - cs) <= 2) { const hold = span(t - 8, t - 0.2).filter(x => Math.abs(x.s - tc) <= 1); if (hold.length < 2 || hold[hold.length - 1].t - hold[0].t < 1.6) return false; const r2 = near(t + 2.5, 1.6); if (r2 && r2.s >= hold[hold.length - 1].s && !/incomplete/i.test(p.text || '')) return false; } }
       // inside the previous play: clock already ticking at t, and that run started at another clip's snap (Clemson Q2 0:39 sat in the 0:44 play)
       const r1 = near(t + 1); if (r && r1 && r1.s < r.s && others) { const back = span(t - 30, t - 2.5); for (let j = back.length - 1; j > 0; j--) { const b = back[j], nx = R.find(x => x.t > b.t); if (!nx || nx.s >= b.s) continue; let k = j; while (k > 0 && back[k - 1].s === b.s) k--; if (b.t - back[k].t >= 1.6) { const rs = b.t + 0.5; if (t - rs < 12 && others.some(o => o.id !== p.id && !o.est && Math.abs(o.snap - rs) <= 3)) return false; break; } } }
       return true; };
