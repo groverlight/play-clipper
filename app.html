@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play Clipper</title>
-<meta name="pc-build" content="1795801775">
+<meta name="pc-build" content="1795814540">
 <script src="./vendor/react.production.min.js"></script>
 <script src="./vendor/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
@@ -1232,6 +1232,37 @@ class Component extends DCLogic {
     if (!this.bc) { this.bc = document.createElement('canvas'); this.bcx = this.bc.getContext('2d', { willReadFrequently: true }); }
   }
   // first wide field shot in [from,to] where players sit still ≥1.5s then motion starts → snap time
+  // the kick moment of a PAT / kickoff: the first live set→motion in the window — wide enough (kickoff's high shot is only ~0.3 green), scoreboard on screen (ESPN drops it for replays), clock frozen through it (Clemson: opening kickoff clip sat after the return at 14:52; PATs sat on the celebration)
+  kickFind(lo, hi, gMin) {
+    const S = this._ss || []; let i = S.findIndex(x => x.t >= lo); if (i < 0) return null;
+    const rd = (t) => { for (const dt of [0, -1, 1]) { const r = this.bug[this.bkey(Math.round(t + dt))]; if (r && r.s != null) return r; } return null; };
+    let quiet = null;
+    for (; i < S.length && S[i].t <= hi; i++) {
+      const x = S[i]; if (x.c || x.c0 || x.soft || x.g < gMin) { quiet = null; continue; }
+      if (x.m < 12) { if (quiet == null && x.m < 6) quiet = x.t; continue; }   // up to 12 = settling / sample noise, doesn't break the set
+      if (quiet != null && x.t - quiet >= 1.5) {
+        const n = S.slice(i, i + 6).filter(y => y.g >= gMin - 0.12 && y.m >= 8).length,   /* the camera tilts up with the kick: green falls */ t = x.t - 0.3, a = rd(t - 1.5), b = rd(t + 1.5);
+        if (n >= 4 && a && b && a.s === b.s) return t;
+        quiet = null; continue;
+      }
+      if (x.m >= 12) quiet = null;   // a twitch (8–12) before the set is long enough doesn't reset it (Clemson PAT Q3 1:53)
+    }
+    return null;
+  }
+  // kickoff: the high wide shot of the line-up (green ≥0.42 for 2s, no cut), then the camera tilts up with the ball (green drops ≥0.12 within 1.5s) — the kick is just before the tilt. Scoreboard on, clock frozen.
+  kickoffFind(lo, hi) {
+    const S = this._ss || []; let i = S.findIndex(x => x.t >= lo); if (i < 0) return null;
+    const rd = (t) => { for (const dt of [0, -1, 1]) { const r = this.bug[this.bkey(Math.round(t + dt))]; if (r && r.s != null) return r; } return null; };
+    const win = (a, b) => { const r = []; for (let j = i; j < S.length && S[j].t <= b; j++) if (S[j].t >= a) r.push(S[j]); return r; };
+    for (let b0 = i; b0 < S.length && S[b0].t <= hi; b0++) {
+      const t = S[b0].t; if (S[b0].c || S[b0].c0 || S[b0].soft) continue; const pre = []; for (let j = b0; j >= 0 && S[j].t >= t - 2; j--) pre.push(S[j]);
+      if (pre.length < 6 || pre[pre.length - 1].t > t - 1.6 || pre.some(x => x.c || x.c0 || x.soft || x.g < 0.42)) continue;
+      const g0 = pre.reduce((a, x) => a + x.g, 0) / pre.length; if (g0 > 0.62 || Math.max(...pre.map(x => x.g)) - Math.min(...pre.map(x => x.g)) > 0.07) continue; /* steady before the kick, not a pan */ /* the kickoff shot is high and wide (stands in frame): green ~0.4–0.56, not a tight field shot (Clemson Q4 14:48 matched a 0.72 pan) */ let drop = false; for (let j = b0 + 1; j < S.length && S[j].t <= t + 1.5; j++) { if (S[j].c || S[j].c0) break; if (S[j].g <= g0 - 0.12) { drop = true; break; } } if (!drop) continue;
+      const a = rd(t - 2), b = rd(t + 2); if (!a || !b || a.s !== b.s) continue;
+      return t - 0.3;
+    }
+    return null;
+  }
   wideSnap(from, to, last) {
     const S = this._ss || []; let i = S.findIndex(s => s.t >= from); if (i < 0) return null;
     let quiet = null, found = null;
@@ -1912,10 +1943,16 @@ class Component extends DCLogic {
     // kicks (PAT, kickoff) come after the score and before the next snap, in order (Clemson: two kickoffs sat before their FG / TD)
     const ord2 = fin.map((c, i) => i).filter(i => P[fin[i].id]).sort((x, y) => idx[fin[x].id] - idx[fin[y].id]);
     for (let k = 0; k < ord2.length; k++) {
-      const i = ord2[k], c = fin[i], p = P[c.id]; if (!(p.pat || /kickoff/i.test((p.type || '') + ' ' + ((p.sum && p.sum.result) || '')))) continue;
-      const pv = k > 0 ? fin[ord2[k - 1]] : null; let nx = null; for (let j = k + 1; j < ord2.length; j++) { const o = fin[ord2[j]]; if (!o.est) { nx = o; break; } }
+      const i = ord2[k], c = fin[i], p0 = P[c.id], isPat = p0.pat || /extra point|two-point|2pt/i.test(p0.type || ''), p = isPat && !p0.pat ? { ...p0, pat: true } : p0; if (!(isPat || /kickoff/i.test((p.type || '') + ' ' + ((p.sum && p.sum.result) || '')))) continue;   // ESPN-listed extra points (type 'Extra Point') count as PATs too
+      const pv = k > 0 ? fin[ord2[k - 1]] : null; let nx = null; for (let j = k + 1; j < ord2.length; j++) { const o = fin[ord2[j]], po = P[o.id]; if (!o.est && !(po.pat || /kickoff|extra point/i.test(po.type || ''))) { nx = o; break; } }   // bound by the next scrimmage play, not the next kick (that one may still be misplaced)
       const lo = pv ? pv.snap + (p.pat ? 12 : 20) : 0, hi = nx ? nx.snap - 8 : (this.state.duration || 1e9);
-      if (c.snap >= lo && c.snap <= hi && !c.est) continue; if (hi <= lo) continue;
+      if (hi <= lo) continue;
+      // returned kickoff: the kick is before the clock starts on the catch → search up to that start
+      let hi2 = hi; if (!p.pat && /return/i.test(p.text || '') && !/touchback/i.test(p.text || '')) { const pc = this.clockSec({ clock: pv ? (P[pv.id] || {}).clock : '15:00' }); const cst = this.clockStart({ clock: pv ? (P[pv.id] || {}).clock : '15:00', q: p.q }, lo, hi); if (cst != null) hi2 = Math.min(hi, cst - 1); }
+      let kf = p.pat ? this.kickFind(lo, hi2, 0.3) : this.kickoffFind(lo, hi2);   // PAT view from behind the end zone is only ~0.33 green (orange end zone)
+      if (kf == null && !p.pat && k === 0 && hi2 < hi) kf = Math.max(lo + 0.5, hi2 - 10);   // opening kickoff with the video starting on it: back off from the catch
+      if (kf != null && !fin.some((o, jj) => jj !== i && !o.est && Math.abs(o.snap - kf) < 6)) { fin[i] = this.reclip(c, kf); continue; }
+      if (c.snap >= lo && c.snap <= hi && !c.est) continue;
       const w = this.wideSnap(lo, hi); const t = w != null ? w : (lo + Math.min(hi, lo + 60)) / 2; fin[i] = { ...this.reclip(c, t), est: w == null && c.est };
     }
     // no clip opens on a crowd / close-up / graphic: if the first frames aren't the field, start where the field shot begins (before the snap)
@@ -1943,7 +1980,7 @@ class Component extends DCLogic {
   }
   // a moved clip gets a fresh lead-in: start at a camera cut into the field shot if there is one in the 3s before the snap (rules 1/7),
   // never on the crowd shot before it (Clemson offense 19 opened on a fan close-up)
-  reclip(c, t) { const lead = Number(this.props.leadIn ?? 3); return { ...c, snap: t, start: Math.min(t - 1, Math.max(0, t - lead, this.cutBefore(t, lead))), end: t + Math.max(4, c.end - c.snap), fixed: true }; }
+  reclip(c, t) { const lead = Number(this.props.leadIn ?? 3); return { ...c, snap: t, start: Math.max(0, Math.min(t - 1, Math.max(0, t - lead, this.cutBefore(t, lead)))), end: t + Math.max(4, c.end - c.snap), fixed: true }; }
   // first moment after `from` where the clock starts ticking from this play's snap clock (hold ≥1.6s → ticking within 5s);
   // if the scoreboard holds that clock and then disappears (replay / graphic), the first snap motion after the hold
   clockStart(p, from, to) {
