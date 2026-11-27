@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play Clipper</title>
-<meta name="pc-build" content="1795745093">
+<meta name="pc-build" content="1795745506">
 <script src="./vendor/react.production.min.js"></script>
 <script src="./vendor/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
@@ -1926,6 +1926,8 @@ class Component extends DCLogic {
     // and never mid-dissolve: the first frame must be the field at full strength, not a graphic fading out (Clemson offense 36 opened 0.4s into a graphic→field dissolve)
     const sIdx = (t) => { let lo = 0, hi = ST.length; while (lo < hi) { const m = (lo + hi) >> 1; if (ST[m] < t) lo = m + 1; else hi = m; } return lo; };
     const solid = (j) => { const g = S[j].g; if (g < 0.4) return false; let mx = g; for (let k = j + 1; k < S.length && S[k].t <= S[j].t + 0.6; k++) mx = Math.max(mx, S[k].g); return g >= 0.88 * mx; };
+    // the clip opens in the snap's own shot: a cut / soft cut (replay wipe) in the lead-in moves the start just past it (Clemson offense 35 opened on a replay of the previous play, then the ACC wipe)
+    for (let i = 0; i < fin.length; i++) { const c = fin[i]; if (c.est) continue; let last = null; for (let j = sIdx(c.start + 0.05); j < S.length && S[j].t <= c.snap - 0.4; j++) if (S[j].c || S[j].c0 || S[j].soft) last = S[j].t; if (last != null) { let k = sIdx(last + 0.05); while (k < S.length && S[k].t <= c.snap - 0.3 && (S[k].c || S[k].c0 || S[k].soft)) k++; if (k < S.length && S[k].t <= c.snap - 0.3) fin[i] = { ...c, start: S[k].t + 0.1 }; } }
     for (let i = 0; i < fin.length; i++) { const c = fin[i]; if (c.est) continue; let j = sIdx(c.start); if (j >= S.length || solid(j) || S[j].t > c.start + 0.3) continue;
       for (; j < S.length && S[j].t <= c.snap - 0.2; j++) if (solid(j)) { if (S[j].t - c.start <= 2) fin[i] = { ...c, start: S[j].t }; break; } }
     return fin;
@@ -1942,7 +1944,8 @@ class Component extends DCLogic {
     for (let j = 1; j < R.length - 1; j++) { const a = R[j], nx = R[j + 1]; if (a.t < from || !inQ(a)) continue; if (a.q != null && a.q !== p.q) break; if (!(nx.s < a.s && nx.t - a.t <= 5 && a.s >= cs - 1 && a.s <= cs + 8)) continue; let k = j; while (k > 0 && R[k - 1].s === a.s) k--; if (a.t - R[k].t < 1.6) continue; const t0 = Math.max(a.t, nx.t - (a.s - nx.s)); const w = this.wideSnap(t0 - 4, t0 + 1.2, true); return w != null ? w : t0 - 0.5; }
     // a held clock = one value read over ≥3s (a ticking clock passes through each value in ~1s)
     const hv = R.filter(r => r.t >= from && inQ(r) && r.s >= cs && r.s <= cs + 8); const byV = {}; hv.forEach(r => { (byV[r.s] = byV[r.s] || []).push(r); }); const held = Object.values(byV).filter(g => g[g.length - 1].t - g[0].t >= 3).sort((a, b) => a[0].t - b[0].t)[0];
-    if (held) { const last = held[held.length - 1]; const w = this.wideSnap(last.t - 1, last.t + 8); return w != null ? w : last.t + 0.5; }
+    // scoreboard hidden when the clock starts (replay / graphic): back-solve from the first ticking read after the hold (Clemson offense 49: last 1:41 read 14s before the snap)
+    if (held) { const last = held[held.length - 1], nx = R.find(r => r.t > last.t && inQ(r) && r.s < last.s && r.s >= last.s - 8 && r.t - last.t <= 60); if (nx) { const t0 = Math.max(last.t, nx.t - (last.s - nx.s)); const w = this.wideSnap(t0 - 4, t0 + 1.2, true); return w != null ? w : t0 - 0.5; } const w = this.wideSnap(last.t - 1, last.t + 8); return w != null ? w : last.t + 0.5; }
     return null;
   }
   // Rule 23: after a play that stops the clock (punt, kick, turnover, incompletion, out of bounds, flag, score, timeout) the clock stays stopped
@@ -1954,7 +1957,7 @@ class Component extends DCLogic {
     const stopper = /punt|kickoff|intercept|fumble|incomplete|out of bounds|PENALTY|TOUCHDOWN|field goal|timeout|kick attempt|spiked/i;
     const moved = {};
     for (let k = 1; k < list.length; k++) {
-      const c = list[k], p = P[c.id], pv = list[k - 1], pp = P[pv.id], cs = this.clockSec(p);
+      const c = list[k], p = P[c.id], pv = moved[list[k - 1].id] || list[k - 1], pp = P[pv.id], cs = this.clockSec(p);   // the previous clip as already moved in this pass (Clemson offense 49 sat inside the fumble play that had just been moved after its kickoff)
       if (!pp || !stopper.test(pp.text || '') || cs == null || p.q > 4 || pp.q !== p.q || c.snap - pv.snap > 120) continue;
       const qOk = (r) => r && (r.q == null || r.q === p.q);
       // change of possession (punt, kickoff, turnover): the next snap is never within 25s — and never before the kick
@@ -1987,15 +1990,15 @@ class Component extends DCLogic {
   pumpThumbs() {
     if ((!this.tv || !this.tv.parentNode) && this.state.src && !this.unmounting) { this.thumbBusy = null; this.setupThumbs(); return; }
     const tv = this.tv;
-    if (this.thumbBusy && performance.now() - this.thumbAt > 2000) { const b = this.thumbBusy; this.thumbs[b.id] = this.thumbs[b.id] || { t: b.t, url: '', at: performance.now(), v: 3 }; this.thumbBusy = null; }
+    if (this.thumbBusy && performance.now() - this.thumbAt > 2000) { const b = this.thumbBusy; this.thumbs[b.id] = this.thumbs[b.id] || { t: b.t, url: '', at: performance.now(), v: 4 }; this.thumbBusy = null; }
     if (!tv || this.thumbBusy || tv.readyState < 1) return;
-    const all = this.state.clips.concat(this.state.rawClips || []), bad = (c) => { const x = this.thumbs[c.id]; return !x || x.v !== 3 || x.s == null || Math.abs(x.s - c.start) > 0.3 || (!x.url && performance.now() - x.at > 15000); };
+    const all = this.state.clips.concat(this.state.rawClips || []), bad = (c) => { const x = this.thumbs[c.id]; return !x || x.v !== 4 || x.s == null || Math.abs(x.s - c.start) > 0.3 || (!x.url && performance.now() - x.at > 15000); };
     const ref = this._curClip ? this._curClip.start : 0, near = (a, b) => Math.abs(a.start - ref) - Math.abs(b.start - ref);
     const c = all.filter(bad).sort(near)[0] || all.filter(c => { const x = this.thumbs[c.id]; return x && x.url && x.hq !== 2; }).sort(near)[0];
     if (!c) return;
     this.thumbBusy = { id: c.id, t: c.snap, s: c.start }; this.thumbAt = performance.now();
     clearTimeout(this.thumbTO); this.thumbTO = setTimeout(() => this.pumpThumbs(), 6100);
-    tv.currentTime = Math.max(0, Math.min(c.start + 0.05, (tv.duration || c.start + 1) - 0.1));
+    tv.currentTime = Math.max(0, Math.min(this.thumbT(c), (tv.duration || c.start + 1) - 0.1));
     clearTimeout(this.thumbTO); this.thumbTO = setTimeout(() => this.pumpThumbs(), 2100);
   }
   grabFromRing(list) {
@@ -2003,12 +2006,16 @@ class Component extends DCLogic {
     const lo = ring[0].t, hi = ring[ring.length - 1].t;
     list.forEach(c => {
       const x = this.thumbs[c.id]; if (x && x.url && x.s != null && Math.abs(x.s - c.start) <= 0.3) return;
-      const want = c.start; if (want < lo || want > hi) return;
+      const want = this.thumbT(c); if (want < lo || want > hi) return;
       let best = ring[0]; for (const f of ring) if (Math.abs(f.t - want) < Math.abs(best.t - want)) best = f;
-      if (Math.abs(best.t - want) < 0.6) this.thumbs[c.id] = { t: c.snap, s: c.start, url: best.cv.toDataURL('image/jpeg', 0.72), v: 3 };
+      if (Math.abs(best.t - want) < 0.6) this.thumbs[c.id] = { t: c.snap, s: c.start, url: best.cv.toDataURL('image/jpeg', 0.72), v: 4 };
     });
   }
-  thumbUrl(c) { const x = c && this.thumbs[c.id]; return x && x.url && x.v === 3 && x.s != null && Math.abs(x.s - c.start) <= 0.3 ? x.url : ''; }
+  // preview frame = the wide shot of the set just before the snap (not the clip's first frame, which can be a crowd / replay / graphic)
+  thumbT(c) { const S = this.samples || []; if (!S.length || c.snap == null) return c.start + 0.05; let lo = 0, hi = S.length; while (lo < hi) { const m = (lo + hi) >> 1; if (S[m].t < c.start) lo = m + 1; else hi = m; }
+    let set = null, wide = null, after = null; for (let j = lo; j < S.length && S[j].t <= c.snap + 4; j++) { const x = S[j]; if (x.g < 0.5 || x.c || x.c0 || x.soft) continue; if (x.t <= c.snap - 0.1) { wide = x.t; if (x.m < 8) set = x.t; } else if (after == null) after = x.t; }
+    return set != null ? set : wide != null ? wide : after != null ? after : c.start + 0.05; }
+  thumbUrl(c) { const x = c && this.thumbs[c.id]; return x && x.url && x.v === 4 && x.s != null && Math.abs(x.s - c.start) <= 0.3 ? x.url : ''; }
   onThumbSeeked() {
     const id = this.thumbBusy, tv = this.tv;
     if (!id || !tv) return;
@@ -2017,7 +2024,7 @@ class Component extends DCLogic {
     const g = this.tc.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(tv, 0, 0, 1280, 720);
     const px = g.getImageData(0, 0, 1280, 720).data; let sum = 0, nPx = 0; for (let k = 0; k < px.length; k += 4 * 997) { sum += px[k] + px[k + 1] + px[k + 2]; nPx++; }
     if (sum / (nPx * 3 || 1) < 10 && (id.tries || 0) < 3) { id.tries = (id.tries || 0) + 1; id.waited = false; this.thumbAt = performance.now(); tv.currentTime = Math.min((tv.duration || 1e9) - 0.1, tv.currentTime + 0.25); return; }
-    this.thumbs[id.id] = { t: id.t, s: id.s, url: this.tc.toDataURL('image/jpeg', 0.88), hq: 2, v: 3, ok: 1 };
+    this.thumbs[id.id] = { t: id.t, s: id.s, url: this.tc.toDataURL('image/jpeg', 0.88), hq: 2, v: 4, ok: 1 };
     clearTimeout(this.thumbSaveTO); const fk = this.fileKey; this.thumbSaveTO = setTimeout(() => { if (fk !== this.fileKey) return; const o = {}; for (const k in this.thumbs) if (this.thumbs[k].hq === 2) o[k] = this.thumbs[k]; this.cachePut('thumbs|' + fk, o); }, 1500);
     this.thumbBusy = null; clearTimeout(this.thumbTO);
     this.forceUpdate();
