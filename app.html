@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play Clipper</title>
-<meta name="pc-build" content="1795723285">
+<meta name="pc-build" content="1795744162">
 <script src="./vendor/react.production.min.js"></script>
 <script src="./vendor/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
@@ -1917,6 +1917,11 @@ class Component extends DCLogic {
     for (let i = 0; i < fin.length; i++) { const c = fin[i]; if (c.est || fieldAt(c.snap)) continue; let cut = null; for (let t = c.snap + 0.1; t <= c.snap + 3; t += 0.1) if (fieldAt(t)) { cut = t; break; } if (cut == null) continue;
       const w = this.wideSnap(cut - 0.2, cut + 10); if (w == null || w <= c.snap) continue; if (fin.some((o, j) => j !== i && !o.est && o.snap > c.snap - 1 && o.snap < w + 6)) continue; fin[i] = this.reclip(c, w); }
     for (let i = 0; i < fin.length; i++) { const c = fin[i]; if (c.est || fieldAt(c.start + 0.05)) continue; for (let t = c.start + 0.2; t <= c.snap - 0.5; t += 0.2) if (fieldAt(t)) { fin[i] = { ...c, start: t }; break; } }
+    // and never mid-dissolve: the first frame must be the field at full strength, not a graphic fading out (Clemson offense 36 opened 0.4s into a graphic→field dissolve)
+    const sIdx = (t) => { let lo = 0, hi = ST.length; while (lo < hi) { const m = (lo + hi) >> 1; if (ST[m] < t) lo = m + 1; else hi = m; } return lo; };
+    const solid = (j) => { const g = S[j].g; if (g < 0.4) return false; let mx = g; for (let k = j + 1; k < S.length && S[k].t <= S[j].t + 0.6; k++) mx = Math.max(mx, S[k].g); return g >= 0.88 * mx; };
+    for (let i = 0; i < fin.length; i++) { const c = fin[i]; if (c.est) continue; let j = sIdx(c.start); if (j >= S.length || solid(j) || S[j].t > c.start + 0.3) continue;
+      for (; j < S.length && S[j].t <= c.snap - 0.2; j++) if (solid(j)) { if (S[j].t - c.start <= 2) fin[i] = { ...c, start: S[j].t }; break; } }
     return fin;
   }
   // a moved clip gets a fresh lead-in: start at a camera cut into the field shot if there is one in the 3s before the snap (rules 1/7),
